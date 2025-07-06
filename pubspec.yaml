@@ -72,6 +72,8 @@ flutter:
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
   assets:
+    - assets/images/login.png
+    - assets/images/register.png
     - assets/images/blank_image.jpg
     - assets/images/close_reminder.png
     - assets/images/open_reminder.png
