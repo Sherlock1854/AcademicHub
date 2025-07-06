@@ -26,43 +26,54 @@ class _ChatScreenState extends State<ChatScreen> {
   final ChatService _chatService = ChatService();
   final ImagePicker _picker = ImagePicker();
   final ScrollController _scrollController = ScrollController();
-  late List<ChatMessage> _history;
+  late final Stream<List<ChatMessage>> _messages$;
 
   @override
   void initState() {
     super.initState();
-    _history = _chatService.getMessages();
+    _messages$ = ChatService().messagesStream(widget.friend.id);
   }
 
-  void _refresh() {
-    setState(() => _history = _chatService.getMessages());
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController
-            .jumpTo(_scrollController.position.maxScrollExtent);
-      }
-    });
-  }
+  // void _refresh() {
+  //   setState(() => _history = _chatService.getMessages());
+  //   WidgetsBinding.instance.addPostFrameCallback((_) {
+  //     if (_scrollController.hasClients) {
+  //       _scrollController
+  //           .jumpTo(_scrollController.position.maxScrollExtent);
+  //     }
+  //   });
+  // }
 
-  void _handleSend(String text) {
-    _chatService.sendMessage(text);
-    _refresh();
-  }
+  Future<void> _handleSend(String text) =>
+      _chatService.sendMessage(chatId: widget.friend.id, text: text);
 
   Future<void> _handlePickImage() async {
     final file = await _picker.pickImage(source: ImageSource.gallery);
     if (file != null) {
-      _chatService.sendImage(file.path);
-      _refresh();
+      await _chatService.sendMessage(
+        chatId: widget.friend.id,
+        imagePath: file.path,
+      );
     }
   }
 
   Future<void> _handleTakePhoto() async {
     final photo = await _picker.pickImage(source: ImageSource.camera);
     if (photo != null) {
-      _chatService.sendImage(photo.path);
-      _refresh();
+      await _chatService.sendMessage(
+        chatId: widget.friend.id,
+        imagePath: photo.path,
+      );
     }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController
+            .jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
   }
 
   @override
@@ -103,46 +114,74 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                    itemCount: _history.length,
-                    itemBuilder: (ctx, index) {
-                      final msg = _history[index];
-                      final msgDate = msg.timestamp;
-                      final prevDate = index > 0 ? _history[index - 1].timestamp : null;
-                      final showDivider = prevDate == null ||
-                          !(prevDate.year == msgDate.year &&
-                              prevDate.month == msgDate.month &&
-                              prevDate.day == msgDate.day);
-
-                      // human-friendly date label
-                      final now = DateTime.now();
-                      String dateLabel;
-                      if (now.year == msgDate.year &&
-                          now.month == msgDate.month &&
-                          now.day == msgDate.day) {
-                        dateLabel = 'Today';
-                      } else if (now.subtract(const Duration(days: 1)).year == msgDate.year &&
-                          now.subtract(const Duration(days: 1)).month == msgDate.month &&
-                          now.subtract(const Duration(days: 1)).day == msgDate.day) {
-                        dateLabel = 'Yesterday';
-                      } else {
-                        dateLabel = DateFormat('MMM d, yyyy').format(msgDate);
+                  child: StreamBuilder<List<ChatMessage>>(
+                    stream: _messages$,
+                    builder: (ctx, snapshot) {
+                      if (snapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const Center(
+                            child: CircularProgressIndicator());
                       }
+                      final history = snapshot.data ?? [];
+                      _scrollToBottom();
 
-                      return Column(
-                        crossAxisAlignment:
-                        msg.isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                        children: [
-                          if (showDivider) DateDivider(date: dateLabel),
-                          MessageBubble(
-                            message: msg.text,
-                            imagePath: msg.imagePath,
-                            isSender: msg.isSender,
-                            timestamp: msg.timestamp,
-                          ),
-                        ],
+                      return ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 16, horizontal: 12),
+                        itemCount: history.length,
+                        itemBuilder: (ctx, index) {
+                          final msg = history[index];
+                          final msgDate = msg.timestamp;
+                          final prevDate = index > 0
+                              ? history[index - 1].timestamp
+                              : null;
+                          final showDivider = prevDate == null ||
+                              !(prevDate.year == msgDate.year &&
+                                  prevDate.month == msgDate.month &&
+                                  prevDate.day == msgDate.day);
+
+                          // human-friendly date label
+                          final now = DateTime.now();
+                          String dateLabel;
+                          if (now.year == msgDate.year &&
+                              now.month == msgDate.month &&
+                              now.day == msgDate.day) {
+                            dateLabel = 'Today';
+                          } else if (now
+                              .subtract(const Duration(days: 1))
+                              .year ==
+                              msgDate.year &&
+                              now
+                                  .subtract(const Duration(days: 1))
+                                  .month ==
+                                  msgDate.month &&
+                              now
+                                  .subtract(const Duration(days: 1))
+                                  .day ==
+                                  msgDate.day) {
+                            dateLabel = 'Yesterday';
+                          } else {
+                            dateLabel =
+                                DateFormat('MMM d, yyyy').format(msgDate);
+                          }
+
+                          return Column(
+                            crossAxisAlignment: msg.isSender
+                                ? CrossAxisAlignment.end
+                                : CrossAxisAlignment.start,
+                            children: [
+                              if (showDivider)
+                                DateDivider(date: dateLabel),
+                              MessageBubble(
+                                message: msg.text,
+                                imagePath: msg.imagePath,
+                                isSender: msg.isSender,
+                                timestamp: msg.timestamp,
+                              ),
+                            ],
+                          );
+                        },
                       );
                     },
                   ),

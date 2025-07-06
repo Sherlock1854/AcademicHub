@@ -41,7 +41,7 @@ class ChatService {
     });
   }
 
-  /// Internal helper: converts a Firestore doc into a ChatMessage model.
+  /// Internal helper: converts a Firestore doc into a ChatMessage models.
   ChatMessage _fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
     return ChatMessage(

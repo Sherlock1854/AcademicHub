@@ -1,9 +1,52 @@
+// lib/widgets/friend_request_item.dart
+
 import 'package:flutter/material.dart';
 import '../../models/friend_request.dart';
+import '../../services/friend_request_service.dart';
 
 class FriendRequestItem extends StatelessWidget {
   final FriendRequest request;
-  const FriendRequestItem({required this.request, super.key});
+  final _service = FriendRequestService();
+
+  FriendRequestItem({required this.request, super.key});
+
+  Future<void> _delete(BuildContext ctx) async {
+    try {
+      await _service.deleteRequest(request.id);
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        const SnackBar(content: Text('Request deleted')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(content: Text('Delete failed: $e')),
+      );
+    }
+  }
+
+  Future<void> _confirm(BuildContext ctx) async {
+    try {
+      // Mark as accepted in Firestore (you can adjust logic / collection as needed)
+      await _service.sendRequest(
+        FriendRequest(
+          id: request.id,
+          name: request.name,
+          time: request.time,
+          imageUrl: request.imageUrl,
+        ),
+        received: false,
+      );
+      // Remove the original request
+      await _service.deleteRequest(request.id);
+
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        const SnackBar(content: Text('Friend request accepted')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(content: Text('Confirm failed: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,23 +86,26 @@ class FriendRequestItem extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     OutlinedButton(
-                      onPressed: () {},
+                      onPressed: () => _delete(context),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        padding:
+                        const EdgeInsets.symmetric(horizontal: 20),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
                         side: BorderSide(color: Colors.grey.shade300),
                       ),
-                      child: const Text('Delete', style: TextStyle(color: Colors.black)),
+                      child: const Text('Delete',
+                          style: TextStyle(color: Colors.black)),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () => _confirm(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        padding:
+                        const EdgeInsets.symmetric(horizontal: 20),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
