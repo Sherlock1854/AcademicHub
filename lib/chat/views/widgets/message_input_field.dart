@@ -1,14 +1,18 @@
+// lib/screens/widgets/message_input_field.dart
+
 import 'package:flutter/material.dart';
 
 class MessageInputField extends StatefulWidget {
   final void Function(String) onSend;
   final VoidCallback onImagePressed;
   final VoidCallback onCameraPressed;
+  final bool isBot;   // ← new
 
   const MessageInputField({
     required this.onSend,
     required this.onImagePressed,
     required this.onCameraPressed,
+    this.isBot = false,   // default false
     super.key,
   });
 
@@ -45,24 +49,27 @@ class _MessageInputFieldState extends State<MessageInputField> {
 
   @override
   Widget build(BuildContext context) {
+    // Determine how many icons are visible to adjust spacing if needed
+    final showMediaIcons = !widget.isBot;
+
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: SafeArea(
         child: Row(
           children: [
-            // 1) multi‐line text field
+            // 1) multi‐line text field fills remaining space
             Expanded(
               child: TextField(
                 controller: _controller,
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
                 minLines: 1,
-                maxLines: 5,             // scrolls after 5 lines
+                maxLines: 5,
                 decoration: InputDecoration(
-                  hintText: 'Type a message',
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                  hintText: widget.isBot ? 'Ask me anything…' : 'Type a message',
+                  contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   filled: true,
                   fillColor: const Color(0xFFF7F7F7),
                   border: OutlineInputBorder(
@@ -73,19 +80,22 @@ class _MessageInputFieldState extends State<MessageInputField> {
               ),
             ),
 
-            // 2) gallery
-            IconButton(
-              icon: const Icon(Icons.image_outlined),
-              onPressed: widget.onImagePressed,
-            ),
+            // 2) optional gallery icon
+            if (showMediaIcons) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.image_outlined),
+                onPressed: widget.onImagePressed,
+              ),
 
-            // 3) camera
-            IconButton(
-              icon: const Icon(Icons.camera_alt_outlined),
-              onPressed: widget.onCameraPressed,
-            ),
+              // 3) optional camera icon
+              IconButton(
+                icon: const Icon(Icons.camera_alt_outlined),
+                onPressed: widget.onCameraPressed,
+              ),
+            ],
 
-            // 4) send
+            // 4) send icon
             IconButton(
               icon: Icon(
                 Icons.send,
