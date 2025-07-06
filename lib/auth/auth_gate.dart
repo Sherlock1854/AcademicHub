@@ -1,10 +1,10 @@
 import 'package:academichub/auth/views/login.dart';
 import 'package:academichub/auth/views/register.dart';
-import 'package:academichub/dashboard/views/home_page.dart';
+import 'package:academichub/dashboard/views/course_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../friend/views/friends_screen.dart';
-import '../dashboard/views/widget/course_page.dart';
+import '../dashboard/views/widget/course_card.dart';
 import '../../accounts/views/accounts_page.dart';
 
 class AuthGate extends StatelessWidget {

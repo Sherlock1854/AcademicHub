@@ -1,55 +1,45 @@
 import 'package:flutter/material.dart';
 
-// Import all your target pages
-import 'dashboard/views/home_page.dart';
-// import '../../views/screens/courses_page.dart';
-// import '../../views/screens/quizzes_page.dart';
-// import '../../views/screens/forum_page.dart';
+// Import your real pages here
+import 'dashboard/views/course_page.dart';
 import 'accounts/views/accounts_page.dart';
+// import 'courses/views/courses_page.dart';
+// import 'quizzes/views/quizzes_page.dart';
+// import 'forum/views/forum_page.dart';
 
 class AppNavigationBar extends StatelessWidget {
-  final int selectedIndex; // The index of the currently active page/tab
+  final int selectedIndex;
 
   const AppNavigationBar({
     super.key,
     required this.selectedIndex,
   });
 
-  // This function now contains the navigation logic
-  void _onItemTapped(BuildContext context, int index) {
-    // If the tapped index is already the current index, do nothing
-    if (index == selectedIndex) {
-      return;
-    }
+  void _navigateTo(BuildContext context, int index) {
+    if (index == selectedIndex) return;
 
     Widget targetPage;
+
     switch (index) {
-      case 0: // Home
+      case 0:
         targetPage = const HomePageScreen();
         break;
-      case 1: // Courses (Currently redirects to HomePageScreen)
-        targetPage = const HomePageScreen(); // Replace with const CoursesPage() when ready
-        debugPrint('Courses Page is not yet implemented. Redirecting to Home.');
+      case 1:
+        targetPage = const HomePageScreen(); // Replace with CoursesPage()
         break;
-      case 2: // Quizzes (Currently redirects to HomePageScreen)
-        targetPage = const HomePageScreen(); // Replace with const QuizzesPage() when ready
-        debugPrint('Quizzes Page is not yet implemented. Redirecting to Home.');
+      case 2:
+        targetPage = const HomePageScreen(); // Replace with QuizzesPage()
         break;
-      case 3: // Forum (Currently redirects to HomePageScreen)
-        targetPage = const HomePageScreen(); // Replace with const ForumPage() when ready
-        debugPrint('Forum Page is not yet implemented. Redirecting to Home.');
+      case 3:
+        targetPage = const HomePageScreen(); // Replace with ForumPage()
         break;
-      case 4: // Account
-        targetPage = const AccountSettingsScreen(); // Use AccountPage as defined
+      case 4:
+        targetPage = const AccountSettingsScreen();
         break;
       default:
-      // Fallback for any unhandled index, prevents error
-        debugPrint('Tapped unhandled index: $index. Redirecting to Home.');
         targetPage = const HomePageScreen();
-        break;
     }
 
-    // Perform pushReplacement to the selected page
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => targetPage),
@@ -59,12 +49,11 @@ class AppNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
-      type: BottomNavigationBarType.fixed, // Ensures all labels are shown
+      type: BottomNavigationBarType.fixed,
       currentIndex: selectedIndex,
-      selectedItemColor: Colors.blue, // Using direct color
-      unselectedItemColor: Colors.grey[600], // Using direct color
-      // Call the internal _onItemTapped method
-      onTap: (index) => _onItemTapped(context, index),
+      selectedItemColor: Colors.blue,
+      unselectedItemColor: Colors.grey[600],
+      onTap: (index) => _navigateTo(context, index),
       items: const [
         BottomNavigationBarItem(
           icon: Icon(Icons.home),
@@ -75,7 +64,7 @@ class AppNavigationBar extends StatelessWidget {
           label: 'Courses',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.lightbulb_outline), // Icon for Quizzes
+          icon: Icon(Icons.lightbulb_outline),
           label: 'Quizzes',
         ),
         BottomNavigationBarItem(
@@ -83,7 +72,7 @@ class AppNavigationBar extends StatelessWidget {
           label: 'Forum',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline), // Icon for Account
+          icon: Icon(Icons.person_outline),
           label: 'Account',
         ),
       ],

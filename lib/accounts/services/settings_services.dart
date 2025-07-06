@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import '../models/settings.dart'; // <--- UPDATED IMPORT PATH
+import '../models/settings.dart';
+import 'package:academichub/auth/views/login.dart';  // <-- update this import path as needed
 
 class SettingsService {
-  List<SettingsItem> getGeneralSettingsItems({required VoidCallback onLogout}) {
+  List<SettingsItem> getGeneralSettingsItems({
+    required BuildContext context,
+    required VoidCallback onLogout,
+  }) {
     return [
       SettingsItem(
         icon: Icons.notifications_none,
@@ -36,7 +40,13 @@ class SettingsService {
       SettingsItem(
         icon: Icons.logout,
         title: 'Log Out',
-        onTap: onLogout,
+        onTap: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginPage()),
+          );
+          onLogout();
+        },
         type: SettingsItemType.action,
       ),
     ];

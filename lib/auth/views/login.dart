@@ -1,7 +1,8 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:academichub/auth/auth_service.dart';
-import 'package:academichub/auth/views/register.dart'; // Ensure this points to your Register class
+import 'package:academichub/auth/views/register.dart';
+import 'package:academichub/auth/views/forget_password.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -143,7 +144,10 @@ class _LoginPageState extends State<LoginPage> {
                   alignment: Alignment.centerLeft,
                   child: TextButton(
                     onPressed: () {
-                      debugPrint('Forgot Password tapped');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
+                      );
                     },
                     child: const Text(
                       'Forget Password?',

@@ -4,6 +4,7 @@ import '../models/settings.dart'; // <--- UPDATED IMPORT PATH
 import '../services/settings_services.dart';
 import '../views/widgets/settings_tile.dart';
 import '../../bottom_nav.dart';
+import '../../auth/views/login.dart';
 
 class AccountSettingsScreen extends StatefulWidget {
   const AccountSettingsScreen({super.key});
@@ -29,7 +30,10 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       debugPrint('User signed out successfully!');
       if (mounted) {
         // Navigate to the login page and clear the navigation stack
-        Navigator.of(context).pushNamedAndRemoveUntil('/login', (Route<dynamic> route) => false);
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+              (Route<dynamic> route) => false,
+        );
       }
     } catch (e) {
       debugPrint('Error signing out: $e');
