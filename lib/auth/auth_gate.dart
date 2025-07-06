@@ -1,8 +1,10 @@
 import 'package:academichub/auth/views/login.dart';
 import 'package:academichub/auth/views/register.dart';
+import 'package:academichub/dashboard/views/home_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../friend/views/friends_screen.dart';
+import '../dashboard/views/widget/course_page.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -15,7 +17,7 @@ class AuthGate extends StatelessWidget {
           builder: (context, snapshot){
             // user id logged in
             if(snapshot.hasData){
-              return const FriendsScreen();
+              return const HomePageScreen();
             }else{
               //To login page
               return const LoginPage();
