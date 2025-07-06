@@ -32,44 +32,43 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
       _results = [];
     });
 
-    final usersRef = FirebaseFirestore.instance.collection('Users');
+    try {
+      final usersRef = FirebaseFirestore.instance.collection('Users');
+      final snap = await usersRef
+          .where('email', isGreaterThanOrEqualTo: query)
+          .where('email', isLessThanOrEqualTo: '$query\uf8ff')
+          .limit(20)
+          .get();
 
-    // 1) Query name
-    final nameSnap = usersRef
-        .where('name', isGreaterThanOrEqualTo: query)
-        .where('name', isLessThanOrEqualTo: '$query\uf8ff')
-        .get();
+      final results = snap.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final first = data['firstName']?.toString() ?? '';
+        final last  = data['surname']?.toString()   ?? '';
+        return UserResult(
+          id: doc.id,
+          name: '$first $last'.trim(),
+          imageUrl: 'https://placehold.it/48',
+        );
+      }).toList();
 
-    // 2) Query email
-    final emailSnap = usersRef
-        .where('email', isGreaterThanOrEqualTo: query)
-        .where('email', isLessThanOrEqualTo: '$query\uf8ff')
-        .get();
-
-    // Wait for both to finish
-    final snapshots = await Future.wait([nameSnap, emailSnap]);
-
-    // Use a map to dedupe by document ID
-    final Map<String, QueryDocumentSnapshot> docsById = {};
-    for (var snap in snapshots) {
-      for (var doc in snap.docs) {
-        docsById[doc.id] = doc;
-      }
+      setState(() {
+        _results = results;
+      });
+    } catch (e) {
+      debugPrint('Search error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Search failed: $e'))
+      );
+    } finally {
+      // THIS is what actually stops the spinner
+      setState(() {
+        _isSearching = false;
+      });
     }
-
-    setState(() {
-      _results = docsById.values
-          .map((d) => UserResult(
-        id: d.id,
-        name: d['name'] ?? 'No Name',
-        // imageUrl: d['imageUrl'] ?? 'https://placehold.it/48',
-        imageUrl: 'https://placehold.it/48',
-      ))
-          .toList();
-      _isSearching = false;
-    });
   }
 
+// imageUrl: data['imageUrl']?.toString()
+//           ?? 'https://placehold.it/48',
 
   Future<void> _sendRequest(UserResult user) async {
     final req = FriendRequest(
@@ -78,7 +77,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
       time: DateTime.now().toIso8601String(),
       imageUrl: user.imageUrl,
     );
-    await _service.sendRequest(req, received: false);
+    await _service.sendRequest(req);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Request sent to ${user.name}')),
     );
@@ -107,7 +106,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                     textInputAction: TextInputAction.search,
                     onSubmitted: (_) => _doSearch(),
                     decoration: InputDecoration(
-                      hintText: 'Search by name or email',
+                      hintText: 'Search by email',
                       filled: true,
                       fillColor: const Color(0xFFF7F7F7),
                       border: OutlineInputBorder(

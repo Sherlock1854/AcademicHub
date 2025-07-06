@@ -88,7 +88,7 @@ class FriendRequestsScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   itemCount: requests.length,
                   itemBuilder: (ctx, i) =>
-                      FriendRequestItem(request: requests[i]),
+                      FriendRequestItem(request: requests[i], isSent: true,),
                 );
               },
             ),
