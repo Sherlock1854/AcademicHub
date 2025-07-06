@@ -32,21 +32,44 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
       _results = [];
     });
 
-    // Example Firestore query: assume you have a 'users' collection
-    final snap = await FirebaseFirestore.instance
-        .collection('users')
+    final usersRef = FirebaseFirestore.instance.collection('Users');
+
+    // 1) Query name
+    final nameSnap = usersRef
         .where('name', isGreaterThanOrEqualTo: query)
         .where('name', isLessThanOrEqualTo: '$query\uf8ff')
-        .limit(20)
         .get();
 
+    // 2) Query email
+    final emailSnap = usersRef
+        .where('email', isGreaterThanOrEqualTo: query)
+        .where('email', isLessThanOrEqualTo: '$query\uf8ff')
+        .get();
+
+    // Wait for both to finish
+    final snapshots = await Future.wait([nameSnap, emailSnap]);
+
+    // Use a map to dedupe by document ID
+    final Map<String, QueryDocumentSnapshot> docsById = {};
+    for (var snap in snapshots) {
+      for (var doc in snap.docs) {
+        docsById[doc.id] = doc;
+      }
+    }
+
     setState(() {
-      _results = snap.docs
-          .map((d) => UserResult(id: d.id, name: d['name'], imageUrl: d['imageUrl']))
+      _results = docsById.values
+          .map((d) => UserResult(
+        id: d.id,
+        name: d['name'] ?? 'No Name',
+        // imageUrl: d['imageUrl'] ?? 'https://placehold.it/48',
+        imageUrl: 'https://placehold.it/48',
+      ))
           .toList();
       _isSearching = false;
     });
   }
+
 
   Future<void> _sendRequest(UserResult user) async {
     final req = FriendRequest(

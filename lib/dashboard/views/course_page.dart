@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 // Assuming bottom_nav.dart contains your AppNavigationBar
 import '../../bottom_nav.dart'; // Make sure this path is correct for AppNavigationBar
 import '../../accounts/views/accounts_page.dart'; // Account page is still active
+import 'package:academichub/notification/views/notifications_screen.dart';
+import 'package:academichub/friend/views/friends_screen.dart';
 
 // Import other pages if they become active
 // import '../../courses/views/courses_page.dart'; // Uncomment when ready
@@ -22,11 +24,19 @@ class HomePageScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_none, color: Colors.black54),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const NotificationsScreen(),
+              ));
+            },
           ),
           IconButton(
             icon: const Icon(Icons.chat_bubble_outline, color: Colors.black54),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const FriendsScreen(),
+              ));
+            },
           ),
           const SizedBox(width: 8),
         ],

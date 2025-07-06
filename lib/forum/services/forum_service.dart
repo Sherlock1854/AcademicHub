@@ -15,10 +15,44 @@ class ForumService {
   /// Stream of posts under a topic
   Stream<List<ForumPost>> posts(String topicId) {
     return _db
-        .collection('posts')
-        .where('topicId', isEqualTo: topicId)
+        .collection('topics')
+        .doc(topicId)
+        .collection('posts')                // ← subcollection under the topic
         .orderBy('timestamp', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => ForumPost.fromDoc(d)).toList());
+        .map((snap) => snap.docs
+        .map((d) => ForumPost.fromDoc(d))
+        .toList());
+  }
+
+  Future<void> addTopic({
+    required String title,
+    required int iconCodePoint,
+  }) {
+    return _db.collection('topics').add({
+      'title': title,
+      'iconCodePoint': iconCodePoint,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> addPost({
+    required String topicId,
+    required String author,
+    required String title,
+    required String body,
+  }) {
+    return _db
+        .collection('topics')
+        .doc(topicId)
+        .collection('posts')
+        .add({
+      'author': author,
+      'title': title,
+      'body': body,
+      'timestamp': FieldValue.serverTimestamp(),
+      'topicId': topicId,
+    });
   }
 }
+
