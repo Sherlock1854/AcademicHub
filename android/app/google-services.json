@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "939051170781",
+    "project_id": "academichub-c1068",
+    "storage_bucket": "academichub-c1068.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939051170781:android:aaa8171262908378055434",
+        "android_client_info": {
+          "package_name": "com.example.academichub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPqDUhHFNu6BqJEja9VTWf9m-zv3bCEJY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
