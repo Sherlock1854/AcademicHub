@@ -36,7 +36,7 @@
 //     Center(child: Text('Courses Page')),
 //     Center(child: Text('Quizzes Page')),
 //     Center(child: Text('Forum Page')),
-//     Center(child: Text('Profile Page')),
+//     Center(child: Text('accounts Page')),
 //   ];
 //
 //   void _onItemTapped(int index) {
@@ -55,7 +55,7 @@
 //           BottomNavigationBarItem(icon: Icon(Icons.menu_book_outlined), label: 'Courses'),
 //           BottomNavigationBarItem(icon: Icon(Icons.lightbulb_outline), label: 'Quizzes'),
 //           BottomNavigationBarItem(icon: Icon(Icons.forum_outlined), label: 'Forum'),
-//           BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+//           BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'accounts'),
 //         ],
 //         currentIndex: _selectedIndex,
 //         selectedItemColor: Colors.blue,

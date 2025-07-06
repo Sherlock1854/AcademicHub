@@ -5,186 +5,258 @@ import 'package:academichub/utilities/design.dart';
 import 'package:flutter/gestures.dart';
 
 
-class Register extends StatefulWidget {
-  const Register({super.key});
+class RegisterPage extends StatefulWidget { // Renamed from Register
+  const RegisterPage({super.key});
 
   @override
-  State<Register> createState() => _RegisterState();
+  State<RegisterPage> createState() => _RegisterPageState(); // Renamed state
 }
 
-class _RegisterState extends State<Register> {
-  final design = Design();
+class _RegisterPageState extends State<RegisterPage> { // Renamed state
   final TextEditingController registerEmailCtrl = TextEditingController();
   final TextEditingController registerPasswordCtrl = TextEditingController();
-  final TextEditingController registerNameCtrl = TextEditingController();
-  final TextEditingController registerPhoneCtrl = TextEditingController();
+  final TextEditingController registerFirstNameCtrl = TextEditingController(); // Changed to FirstName
+  final TextEditingController registerSurnameCtrl = TextEditingController();   // Added Surname
   bool _obscure = true;
 
   void register() async {
-    final _auth = AuthService();
+    final auth = AuthService(); // Renamed _auth to auth for direct use
 
     try {
-      await _auth.signUpWithEmailPassword(registerEmailCtrl.text, registerPasswordCtrl.text, registerNameCtrl.text, registerPhoneCtrl.text);
-      Navigator.pop(context);
+      // Assuming AuthService.signUpWithEmailPassword can handle first name and surname
+      // You might need to adjust AuthService if it only takes email/password/name/phone
+      await auth.signUpWithEmailPassword(
+        registerEmailCtrl.text,
+        registerPasswordCtrl.text,
+        registerFirstNameCtrl.text, // Pass first name
+        registerSurnameCtrl.text,   // Pass surname
+        // If your AuthService requires phone, you'd add registerPhoneCtrl.text here
+      );
+      if (mounted) {
+        Navigator.pop(context); // Go back to login page on successful registration
+      }
     } catch (e) {
-      showDialog(
+      if (mounted) {
+        showDialog(
           context: context,
-          builder: (context) => AlertDialog(
-                title: Text(e.toString()),
-              ));
+          builder: (_) => AlertDialog(title: Text(e.toString())),
+        );
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    registerEmailCtrl.dispose();
+    registerPasswordCtrl.dispose();
+    registerFirstNameCtrl.dispose();
+    registerSurnameCtrl.dispose(); // Dispose surname controller
+    // registerPhoneCtrl.dispose(); // Uncomment if you still use a phone field
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: design.primaryButton,
+      backgroundColor: Colors.white, // Changed background to white as per image
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // logo
-                Image.asset('assets/images/logo.png', height: 120),
-                const SizedBox(height: 16),
-
-                // Welcome title
-                Text('Welcome to', style: design.subtitleText),
-                Text('Cachingg',    style: design.titleText),
-
-                Container(
-                  margin: const EdgeInsets.symmetric(vertical: 12),
-                  height: 2, width: 300,
-                  color: Colors.white,
-                ),
-
-                // Sign Up header
-                Text('Sign Up', style: design.subtitleText),
-                const SizedBox(height: 24),
-
-                // Full Name
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Full Name',
-                    style: design.contentText.copyWith(color: Colors.grey[600]),
+                const SizedBox(height: 40), // Adjusted space from top
+                const Text(
+                  'Join us today!',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
                 ),
-                TextField(
-                  controller: registerNameCtrl,
-                  style: design.contentText,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.person_outline),
-                    hintText: 'Your Name',
-                    hintStyle: design.contentText.copyWith(color: Colors.grey[400]),
-                    enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: Colors.black),
+                const SizedBox(height: 40),
+                // Circular image from assets
+                Container(
+                  width: 200, // Adjust size as needed
+                  height: 200, // Adjust size as needed
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/register.png', // Your asset image path
+                      fit: BoxFit.cover, // Ensures the image covers the circular area
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 40),
+
+                const Text(
+                  'Sign Up',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 30),
+
+                // First Name and Surname in a Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: registerFirstNameCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'First Name',
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16), // Space between fields
+                    Expanded(
+                      child: TextField(
+                        controller: registerSurnameCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'Surname',
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
 
                 // Email Address
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Email Address',
-                    style: design.contentText.copyWith(color: Colors.grey[600]),
-                  ),
-                ),
                 TextField(
                   controller: registerEmailCtrl,
-                  style: design.contentText,
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    hintText: 'XXX@email.com',
-                    hintStyle: design.contentText.copyWith(color: Colors.grey[400]),
-                    enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: Colors.black),
+                    hintText: 'Email Address',
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
                     ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                   ),
+                  keyboardType: TextInputType.emailAddress,
                 ),
-                const SizedBox(height: 16),
-
-                // Phone Number
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Phone Number',
-                    style: design.contentText.copyWith(color: Colors.grey[600]),
-                  ),
-                ),
-                TextField(
-                  controller: registerPhoneCtrl,
-                  style: design.contentText,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.phone_outlined),
-                    hintText: '0123456789',
-                    hintStyle: design.contentText.copyWith(color: Colors.grey[400]),
-                    enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: Colors.black),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Password
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Password',
-                    style: design.contentText.copyWith(color: Colors.grey[600]),
-                  ),
-                ),
                 TextField(
                   controller: registerPasswordCtrl,
                   obscureText: _obscure,
-                  style: design.contentText,
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    hintText: 'Enter your password',
-                    hintStyle: design.contentText.copyWith(color: Colors.grey[400]),
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _obscure = !_obscure),
+                    hintText: 'Password',
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
                     ),
-                    enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: Colors.black),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscure ? Icons.visibility_off : Icons.visibility,
+                        color: Colors.grey[600],
+                      ),
+                      onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 30),
 
                 // Sign Up button
                 SizedBox(
-                  width: double.infinity, height: 55,
+                  width: double.infinity,
+                  height: 50,
                   child: ElevatedButton(
                     onPressed: register,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: design.secondaryButton,
-                      foregroundColor: Colors.black,
+                      backgroundColor: Colors.blue, // Blue background
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        side: BorderSide(color: Colors.white, width: 2),
+                        borderRadius: BorderRadius.circular(10), // Rounded corners
+                      ),
+                      elevation: 0, // No shadow
+                    ),
+                    child: const Text(
+                      'Sign Up', // Corrected text
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
-                    child: Text('Sign Up', style: design.contentText),
+                  ),
+                ),
+                const SizedBox(height: 15),
+
+                // Sign In button (from the image)
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LoginPage()),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue, // Text color
+                      side: const BorderSide(color: Colors.blue), // Blue border
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Sign In', // Corrected text
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
 
-                // Sign In link
+                // Terms & Conditions text
                 RichText(
+                  textAlign: TextAlign.center,
                   text: TextSpan(
-                    text: 'Already have an account. ',
-                    style: design.captionText.copyWith(color: Colors.black87),
+                    text: 'By signing up, you agree to our ',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     children: [
                       TextSpan(
-                        text: 'Sign In',
-                        style: design.captionText.copyWith(color: Colors.blue),
+                        text: 'Terms & Conditions.',
+                        style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                         recognizer: TapGestureRecognizer()
                           ..onTap = () {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (_) => const LoginPage()),
-                            );
+                            debugPrint('Terms & Conditions tapped');
+                            // TODO: Navigate to Terms & Conditions page
                           },
                       ),
                     ],
@@ -192,7 +264,6 @@ class _RegisterState extends State<Register> {
                 ),
 
                 const SizedBox(height: 40),
-                Text('Cachingg©', style: design.captionText),
               ],
             ),
           ),
