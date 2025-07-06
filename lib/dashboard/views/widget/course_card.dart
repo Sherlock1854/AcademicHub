@@ -1,60 +1,92 @@
-// lib/widgets/course_card.dart
-
 import 'package:flutter/material.dart';
-import '../../models/course.dart';
 
 class CourseCard extends StatelessWidget {
-  final Course course;
+  final String courseTitle;
+  final String courseSubtitle;
+  final String teacherInitial;
 
   const CourseCard({
     super.key,
-    required this.course,
+    required this.courseTitle,
+    required this.courseSubtitle,
+    required this.teacherInitial,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20.0),
-      decoration: BoxDecoration(
-        color: course.color,
-        borderRadius: BorderRadius.circular(20.0),
-        border: Border.all(color: Colors.blue.withOpacity(0.5), width: 1.5),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: course.iconColor,
-              shape: BoxShape.circle,
-            ),
+    const double fixedCardWidth = 380.0; // Your desired fixed width
+    const double fixedCardHeight = 120.0; // <--- INCREASED HEIGHT HERE. Adjust this value!
+
+    // Calculate space needed for the circle and a margin
+    const double circleAreaReservedWidth = (25.0 * 2) + 16.0 + 8.0;
+
+    return Align(
+      child: SizedBox(
+        width: fixedCardWidth,
+        height: fixedCardHeight, // <--- Apply the fixed height here
+        child: Card(
+          margin: const EdgeInsets.symmetric(vertical: 8.0),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8.0),
           ),
-          const SizedBox(width: 20),
-          Expanded( // Use Expanded to prevent text overflow issues
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          elevation: 2,
+          clipBehavior: Clip.antiAlias,
+          child: Container(
+            color: const Color(0xFFE0ECFC),
+            padding: const EdgeInsets.all(16.0),
+            child: Stack(
               children: [
-                Text(
-                  course.title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                Padding(
+                  padding: const EdgeInsets.only(right: circleAreaReservedWidth),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Course Title
+                      Text(
+                        courseTitle,
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      // Course Subtitle
+                      Text(
+                        courseSubtitle,
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  '${course.progress}% complete',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
+                // Teacher Initial Circle Avatar
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: CircleAvatar(
+                    radius: 25,
+                    backgroundColor: Colors.white,
+                    child: Text(
+                      teacherInitial,
+                      style: const TextStyle(
+                        color: Color(0xFF3F51B5),
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

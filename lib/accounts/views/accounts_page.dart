@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/settings.dart'; // <--- UPDATED IMPORT PATH
-import '../services/settings_services.dart';
-import '../views/widgets/settings_tile.dart';
 import '../../bottom_nav.dart';
 import '../../auth/views/login.dart';
 
@@ -49,26 +46,10 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Account Settings'), // Added title for clarity
+        title: const Text('Account Settings'),
+        centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () {
-            debugPrint('Back button tapped on Account Settings');
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            }
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black),
-            onPressed: () {
-              debugPrint('More options tapped on Account Settings');
-            },
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -216,7 +197,7 @@ class SettingsTile extends StatelessWidget {
         ListTile(
           leading: Icon(item.icon, color: Colors.blue),
           title: Text(item.title),
-          trailing: item.onTap != null ? const Icon(Icons.arrow_forward_ios, size: 16) : null,
+          // trailing: item.onTap != null ? const Icon(Icons.arrow_forward_ios, size: 16) : null,
           onTap: item.onTap,
         ),
         if (showDivider)

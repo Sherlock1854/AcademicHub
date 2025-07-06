@@ -1,4 +1,4 @@
-// lib/models/course.dart
+// lib/models/dashboard.dart
 
 import 'package:flutter/material.dart';
 

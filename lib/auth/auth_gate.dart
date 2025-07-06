@@ -1,6 +1,6 @@
 import 'package:academichub/auth/views/login.dart';
 import 'package:academichub/auth/views/register.dart';
-import 'package:academichub/dashboard/views/course_page.dart';
+import 'package:academichub/dashboard/views/dashboard_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../friend/views/friends_screen.dart';

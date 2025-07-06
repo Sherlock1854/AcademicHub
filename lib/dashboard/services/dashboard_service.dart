@@ -1,7 +1,7 @@
-// lib/services/course_service.dart
+// lib/services/dashboard_service.dart
 
 import 'package:flutter/material.dart';
-import '../models/course.dart';
+import '../models/dashboard.dart';
 
 class CourseService {
   /// Simulates fetching enrolled courses from an API.

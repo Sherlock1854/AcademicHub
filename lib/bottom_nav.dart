@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
-// Import your real pages here
-import 'dashboard/views/course_page.dart';
+import 'dashboard/views/dashboard_page.dart';
 import 'accounts/views/accounts_page.dart';
-// import 'courses/views/courses_page.dart';
-// import 'quizzes/views/quizzes_page.dart';
+import 'course/views/course_page.dart';
+import 'quizzes/views/quizzes_page.dart';
 // import 'forum/views/forum_page.dart';
 
 class AppNavigationBar extends StatelessWidget {
@@ -25,10 +24,10 @@ class AppNavigationBar extends StatelessWidget {
         targetPage = const HomePageScreen();
         break;
       case 1:
-        targetPage = const HomePageScreen(); // Replace with CoursesPage()
+        targetPage = const CoursesPageScreen();
         break;
       case 2:
-        targetPage = const HomePageScreen(); // Replace with QuizzesPage()
+        targetPage = const QuizzesPageScreen();
         break;
       case 3:
         targetPage = const HomePageScreen(); // Replace with ForumPage()
