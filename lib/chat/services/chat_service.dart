@@ -1,54 +1,78 @@
 // lib/services/chat_service.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/chat_message.dart';
 
-/// A service for reading/writing chat messages in Firestore.
-/// Each chat is stored under `chats/{chatId}/messages/{messageId}`.
 class ChatService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  String get _myUid => FirebaseAuth.instance.currentUser!.uid;
 
-  /// Returns a real-time stream of messages for the given chatId,
-  /// ordered by timestamp ascending.
-  Stream<List<ChatMessage>> messagesStream(String chatId) {
-    return _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
+  /// Stream of messages exchanged with [friendId], oldest first.
+  Stream<List<ChatMessage>> messagesStream(String friendId) {
+    final col = _db
+        .collection('Users')
+        .doc(_myUid)
+        .collection('friends')
+        .doc(friendId)
+        .collection('messages');
+
+    return col
         .orderBy('timestamp', descending: false)
         .snapshots()
         .map((snap) => snap.docs.map(_fromDoc).toList());
   }
 
-  /// Sends a text message. Either [text] or [imagePath] must be non-null.
+  /// Send [text] or [imageUrl] to [friendId].
+  /// Duplicates it into both users' message subcollections.
   Future<void> sendMessage({
-    required String chatId,
+    required String friendId,
     String? text,
-    String? imagePath,
-  }) {
-    assert(text != null || imagePath != null,
-    'Either text or imagePath must be provided');
-    return _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .add({
+    String? imageUrl,
+  }) async {
+    assert(text != null || imageUrl != null,
+    'Either text or imageUrl must be provided');
+
+    final now = FieldValue.serverTimestamp();
+    final myCol = _db
+        .collection('Users')
+        .doc(_myUid)
+        .collection('friends')
+        .doc(friendId)
+        .collection('messages');
+    final theirCol = _db
+        .collection('Users')
+        .doc(friendId)
+        .collection('friends')
+        .doc(_myUid)
+        .collection('messages');
+
+    final dataForMe = {
       'text': text,
-      'imagePath': imagePath,
-      // Use serverTimestamp so ordering is reliable across devices
-      'timestamp': FieldValue.serverTimestamp(),
+      'imageUrl': imageUrl,
+      'timestamp': now,
       'isSender': true,
-    });
+    };
+    final dataForThem = {
+      'text': text,
+      'imageUrl': imageUrl,
+      'timestamp': now,
+      'isSender': false,
+    };
+
+    // write both docs in parallel
+    await Future.wait([
+      myCol.add(dataForMe),
+      theirCol.add(dataForThem),
+    ]);
   }
 
-  /// Internal helper: converts a Firestore doc into a ChatMessage models.
   ChatMessage _fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
     return ChatMessage(
       text: data['text'] as String?,
-      imagePath: data['imagePath'] as String?,
-      timestamp: (data['timestamp'] as Timestamp?)?.toDate() ??
-          DateTime.now(),
+      imageUrl: data['imageUrl'] as String?,
+      timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isSender: data['isSender'] as bool? ?? false,
     );
   }

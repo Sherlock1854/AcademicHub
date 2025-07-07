@@ -1,11 +1,14 @@
+// lib/screens/add_friend_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/friend_request.dart';
 import '../services/friend_request_service.dart';
 
 class AddFriendScreen extends StatefulWidget {
-  const AddFriendScreen({super.key});
+  const AddFriendScreen({Key? key}) : super(key: key);
 
   @override
   State<AddFriendScreen> createState() => _AddFriendScreenState();
@@ -14,8 +17,29 @@ class AddFriendScreen extends StatefulWidget {
 class _AddFriendScreenState extends State<AddFriendScreen> {
   final _searchController = TextEditingController();
   final _service = FriendRequestService();
+
+  late String _myUid;
+  Set<String> _friendIds = {};
   List<UserResult> _results = [];
   bool _isSearching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _myUid = FirebaseAuth.instance.currentUser!.uid;
+    _loadFriendIds();
+  }
+
+  Future<void> _loadFriendIds() async {
+    final snap = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(_myUid)
+        .collection('friends')
+        .get();
+    setState(() {
+      _friendIds = snap.docs.map((d) => d.id).toSet();
+    });
+  }
 
   @override
   void dispose() {
@@ -33,7 +57,8 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
     });
 
     try {
-      final usersRef = FirebaseFirestore.instance.collection('Users');
+      final usersRef =
+      FirebaseFirestore.instance.collection('Users');
       final snap = await usersRef
           .where('email', isGreaterThanOrEqualTo: query)
           .where('email', isLessThanOrEqualTo: '$query\uf8ff')
@@ -43,11 +68,12 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
       final results = snap.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
         final first = data['firstName']?.toString() ?? '';
-        final last  = data['surname']?.toString()   ?? '';
+        final last = data['surname']?.toString() ?? '';
         return UserResult(
           id: doc.id,
           name: '$first $last'.trim(),
-          imageUrl: 'https://placehold.it/48',
+          imageUrl:
+          data['imageUrl']?.toString() ?? 'https://placehold.it/48',
         );
       }).toList();
 
@@ -57,18 +83,14 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
     } catch (e) {
       debugPrint('Search error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Search failed: $e'))
+        SnackBar(content: Text('Search failed: $e')),
       );
     } finally {
-      // THIS is what actually stops the spinner
       setState(() {
         _isSearching = false;
       });
     }
   }
-
-// imageUrl: data['imageUrl']?.toString()
-//           ?? 'https://placehold.it/48',
 
   Future<void> _sendRequest(UserResult user) async {
     final req = FriendRequest(
@@ -78,6 +100,8 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
       imageUrl: user.imageUrl,
     );
     await _service.sendRequest(req);
+    // reload friends so we immediately hide the button
+    await _loadFriendIds();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Request sent to ${user.name}')),
     );
@@ -87,7 +111,8 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   Widget build(BuildContext ctx) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Friend', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Add Friend',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
@@ -97,35 +122,30 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // 1) Search input
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    textInputAction: TextInputAction.search,
-                    onSubmitted: (_) => _doSearch(),
-                    decoration: InputDecoration(
-                      hintText: 'Search by email',
-                      filled: true,
-                      fillColor: const Color(0xFFF7F7F7),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.search),
-                        onPressed: _doSearch,
-                      ),
-                    ),
-                  ),
+            // Search input
+            TextField(
+              controller: _searchController,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _doSearch(),
+              decoration: InputDecoration(
+                hintText: 'Search by email',
+                filled: true,
+                fillColor: const Color(0xFFF7F7F7),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
                 ),
-              ],
+                contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: _doSearch,
+                ),
+              ),
             ),
             const SizedBox(height: 16),
 
-            // 2) Results or loading indicator
+            // Results or loading
             if (_isSearching)
               const Center(child: CircularProgressIndicator())
             else if (_results.isEmpty)
@@ -138,21 +158,26 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                 ),
               )
             else
-            // 3) List of found users
               Expanded(
                 child: ListView.separated(
                   itemCount: _results.length,
                   separatorBuilder: (_, __) => const Divider(),
                   itemBuilder: (_, i) {
                     final user = _results[i];
+                    final isSelf = user.id == _myUid;
+                    final isFriend = _friendIds.contains(user.id);
+
                     return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
                       leading: CircleAvatar(
                         radius: 24,
                         backgroundImage: NetworkImage(user.imageUrl),
                       ),
-                      title: Text(user.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      trailing: ElevatedButton(
+                      title: Text(user.name,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold)),
+                      trailing: (isSelf || isFriend)
+                          ? null
+                          : ElevatedButton(
                         onPressed: () => _sendRequest(user),
                         style: ElevatedButton.styleFrom(
                           shape: RoundedRectangleBorder(
@@ -172,10 +197,14 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   }
 }
 
-/// Simple models for a user search result (could reuse your Friend models if appropriate)
+/// Simple model for a user search result
 class UserResult {
   final String id;
   final String name;
   final String imageUrl;
-  UserResult({required this.id, required this.name, required this.imageUrl});
+  UserResult({
+    required this.id,
+    required this.name,
+    required this.imageUrl,
+  });
 }

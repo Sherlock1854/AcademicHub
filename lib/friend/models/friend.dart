@@ -20,10 +20,11 @@ class Friend {
   factory Friend.fromMap(String id, Map<String, dynamic> data) {
     return Friend(
       id: id,
-      name: data['name'] as String,
-      lastMessage: data['lastMessage'] as String,
-      time: data['time'] as String,
-      imageUrl: data['imageUrl'] as String,
+      name: (data['name'] as String?)       ?? '',
+      lastMessage: (data['lastMessage'] as String?) ?? '',
+      time: (data['time'] as String?)       ?? '',
+      imageUrl: (data['imageUrl'] as String?)
+          ?? 'https://via.placeholder.com/48',  // ← placeholder URL
       hasUnreadMessages: data['hasUnreadMessages'] as bool? ?? false,
     );
   }

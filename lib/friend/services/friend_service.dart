@@ -1,25 +1,41 @@
 // lib/friend/services/friend_service.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/friend.dart';
 
 class FriendService {
-  final _col = FirebaseFirestore.instance.collection('friends');
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Real-time stream of all friends
+  String get _myUid => FirebaseAuth.instance.currentUser!.uid;
+
+  CollectionReference<Map<String, dynamic>> get _col =>
+      _db
+          .collection('Users')
+          .doc(_myUid)
+          .collection('friends');
+
+  /// Real-time stream of **my** friends
   Stream<List<Friend>> friendsStream() {
-    return _col.snapshots().map((snap) => snap.docs
+    return _col
+        .orderBy('time', descending: false)
+        .snapshots()
+        .map((snap) => snap.docs
         .map((doc) => Friend.fromMap(doc.id, doc.data()))
         .toList());
   }
 
-  /// Add or update a friend
+  /// Add or update a friend under my subcollection
   Future<void> setFriend(Friend f) {
-    return _col.doc(f.id).set(f.toMap());
+    return _col
+        .doc(f.id)
+        .set(f.toMap());
   }
 
-  /// Remove a friend by ID
+  /// Remove a friend by ID from **my** subcollection
   Future<void> deleteFriend(String id) {
-    return _col.doc(id).delete();
+    return _col
+        .doc(id)
+        .delete();
   }
 }
