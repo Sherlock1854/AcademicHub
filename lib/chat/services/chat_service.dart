@@ -71,6 +71,28 @@ class ChatService {
       docRef.set(dataForMe),
       theirCol.doc(msgId).set(dataForThem),
     ]);
+
+    final summary = {
+      'lastText': text,
+      'lastIsImage': imageBase64 != null,
+      'lastTimestamp': FieldValue.serverTimestamp(),
+      // if you capture avatarBase64 at friend-creation time,
+      // you don’t need to change it here
+      'hasUnreadMessages': true,  // or whatever your logic is
+    };
+
+    await Future.wait([
+      // update my copy of the friend-doc
+      _db
+          .collection('Users').doc(_myUid)
+          .collection('friends').doc(friendId)
+          .update(summary),
+      // update their copy
+      _db
+          .collection('Users').doc(friendId)
+          .collection('friends').doc(_myUid)
+          .update(summary),
+    ]);
   }
 
   /// Delete the message with [messageId] in both users' subcollections.

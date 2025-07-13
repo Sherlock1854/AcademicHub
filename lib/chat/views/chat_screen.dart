@@ -74,15 +74,17 @@ class _ChatScreenState extends State<ChatScreen> {
       _scrollToBottom();
       try {
         final reply = await _botService.ask(text);
-        setState(() => _history.add(
-          ChatMessage(
-            id: 'bot_${DateTime.now().millisecondsSinceEpoch}',
-            text: reply,
-            imageBase64: null,
-            timestamp: DateTime.now(),
-            isSender: false,
+        setState(
+          () => _history.add(
+            ChatMessage(
+              id: 'bot_${DateTime.now().millisecondsSinceEpoch}',
+              text: reply,
+              imageBase64: null,
+              timestamp: DateTime.now(),
+              isSender: false,
+            ),
           ),
-        ));
+        );
       } catch (_) {}
       _scrollToBottom();
       return;
@@ -90,10 +92,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // Firestore mode – optimistic add
     setState(() => _history.add(userMsg));
-    await _chatService.sendMessage(
-      friendId: widget.friend.id,
-      text: text,
-    );
+    await _chatService.sendMessage(friendId: widget.friend.id, text: text);
     _scrollToBottom();
   }
 
@@ -125,6 +124,11 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final isBot = widget.friend.id == 'chatbot';
 
+    final avatar = widget.friend.avatarBase64.isNotEmpty
+            ? MemoryImage(base64Decode(widget.friend.avatarBase64))
+            : const AssetImage('assets/images/avatar_placeholder.png')
+                as ImageProvider;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -135,9 +139,8 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             CircleAvatar(
               radius: 20,
-              backgroundImage: NetworkImage(widget.friend.imageUrl),
+              backgroundImage: avatar,
               onBackgroundImageError: (_, __) => setState(() {}),
-              foregroundImage: const AssetImage('assets/images/fail.png'),
             ),
             const SizedBox(width: 12),
             Text(
@@ -160,21 +163,26 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  child: isBot
-                      ? _buildListView(_history)
-                      : StreamBuilder<List<ChatMessage>>(
-                    stream: _messages$,
-                    builder: (ctx, snap) {
-                      if (snap.hasError) {
-                        return Center(child: Text('Error: ${snap.error}'));
-                      }
-                      if (!snap.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      // no more manual initial scroll!
-                      return _buildListView(snap.data!);
-                    },
-                  ),
+                  child:
+                      isBot
+                          ? _buildListView(_history)
+                          : StreamBuilder<List<ChatMessage>>(
+                            stream: _messages$,
+                            builder: (ctx, snap) {
+                              if (snap.hasError) {
+                                return Center(
+                                  child: Text('Error: ${snap.error}'),
+                                );
+                              }
+                              if (!snap.hasData) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+                              // no more manual initial scroll!
+                              return _buildListView(snap.data!);
+                            },
+                          ),
                 ),
               ),
             ),
@@ -206,25 +214,29 @@ class _ChatScreenState extends State<ChatScreen> {
       itemBuilder: (ctx, i) {
         final msg = reversed[i];
         final prev = i + 1 < reversed.length ? reversed[i + 1].timestamp : null;
-        final showDivider = prev == null ||
+        final showDivider =
+            prev == null ||
             prev.year != msg.timestamp.year ||
             prev.month != msg.timestamp.month ||
             prev.day != msg.timestamp.day;
 
         final now = DateTime.now();
         final diff = now.difference(msg.timestamp).inDays;
-        final dateLabel = diff == 0
-            ? 'Today'
-            : diff == 1
-            ? 'Yesterday'
-            : DateFormat('MMM d, yyyy').format(msg.timestamp);
+        final dateLabel =
+            diff == 0
+                ? 'Today'
+                : diff == 1
+                ? 'Yesterday'
+                : DateFormat('MMM d, yyyy').format(msg.timestamp);
 
         return GestureDetector(
           key: ValueKey(msg.id),
           onLongPress: () => _showMessageOptions(ctx, msg),
           child: Column(
             crossAxisAlignment:
-            msg.isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                msg.isSender
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
             children: [
               if (showDivider) DateDivider(date: dateLabel),
               MessageBubble(msg: msg),
@@ -238,39 +250,41 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showMessageOptions(BuildContext ctx, ChatMessage msg) {
     showModalBottomSheet(
       context: ctx,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading:
-              Icon(msg.imageBase64 != null ? Icons.image : Icons.edit),
-              title: Text(msg.imageBase64 != null
-                  ? 'Edit Image'
-                  : 'Edit Text'),
-              onTap: () {
-                Navigator.pop(ctx);
-                if (msg.imageBase64 != null) {
-                  _editImage(ctx, msg);
-                } else {
-                  _editMessage(ctx, msg);
-                }
-              },
+      builder:
+          (_) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(
+                    msg.imageBase64 != null ? Icons.image : Icons.edit,
+                  ),
+                  title: Text(
+                    msg.imageBase64 != null ? 'Edit Image' : 'Edit Text',
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    if (msg.imageBase64 != null) {
+                      _editImage(ctx, msg);
+                    } else {
+                      _editMessage(ctx, msg);
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete),
+                  title: const Text('Delete'),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await _chatService.deleteMessage(
+                      friendId: widget.friend.id,
+                      messageId: msg.id,
+                    );
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.delete),
-              title: const Text('Delete'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await _chatService.deleteMessage(
-                  friendId: widget.friend.id,
-                  messageId: msg.id,
-                );
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -278,18 +292,21 @@ class _ChatScreenState extends State<ChatScreen> {
     final controller = TextEditingController(text: msg.text);
     final newText = await showDialog<String>(
       context: ctx,
-      builder: (_) => AlertDialog(
-        title: const Text('Edit message'),
-        content: TextField(controller: controller),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, null),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, controller.text),
-              child: const Text('Save')),
-        ],
-      ),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Edit message'),
+            content: TextField(controller: controller),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, null),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, controller.text),
+                child: const Text('Save'),
+              ),
+            ],
+          ),
     );
     if (newText != null && newText.trim().isNotEmpty) {
       await _chatService.updateMessage(
