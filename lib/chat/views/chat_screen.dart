@@ -1,7 +1,6 @@
 // lib/screens/chat_screen.dart
 
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -30,12 +29,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   late final Stream<List<ChatMessage>> _messages$;
   final List<ChatMessage> _history = [];
-  bool _didInitialScroll = false;
 
   @override
   void initState() {
     super.initState();
-
     if (widget.friend.id != 'chatbot') {
       _messages$ = _chatService.messagesStream(widget.friend.id);
     } else {
@@ -52,13 +49,11 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  /// Jump to bottom of the scroll.
+  /// Jump to the "start" when reversed==true (i.e. bottom of the chat)
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.jumpTo(
-          _scrollController.position.maxScrollExtent,
-        );
+        _scrollController.jumpTo(0.0);
       }
     });
   }
@@ -79,10 +74,9 @@ class _ChatScreenState extends State<ChatScreen> {
       _scrollToBottom();
       try {
         final reply = await _botService.ask(text);
-        final replyId = 'bot_${DateTime.now().millisecondsSinceEpoch}';
         setState(() => _history.add(
           ChatMessage(
-            id: replyId,
+            id: 'bot_${DateTime.now().millisecondsSinceEpoch}',
             text: reply,
             imageBase64: null,
             timestamp: DateTime.now(),
@@ -94,7 +88,7 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
-    // Firestore mode
+    // Firestore mode – optimistic add
     setState(() => _history.add(userMsg));
     await _chatService.sendMessage(
       friendId: widget.friend.id,
@@ -136,10 +130,7 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: BackButton(color: Colors.black),
         title: Row(
           children: [
             CircleAvatar(
@@ -158,7 +149,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          // Chat area
+          // ── Chat list ──
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -178,25 +169,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         return Center(child: Text('Error: ${snap.error}'));
                       }
                       if (!snap.hasData) {
-                        return const Center(
-                          child: CircularProgressIndicator(),
-                        );
+                        return const Center(child: CircularProgressIndicator());
                       }
-                      final history = snap.data!;
-
-                      // ── First-time scroll when messages arrive ──
-                      if (!_didInitialScroll &&
-                          history.isNotEmpty &&
-                          _scrollController.hasClients) {
-                        _didInitialScroll = true;
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          _scrollController.jumpTo(
-                            _scrollController.position.maxScrollExtent,
-                          );
-                        });
-                      }
-
-                      return _buildListView(history);
+                      // no more manual initial scroll!
+                      return _buildListView(snap.data!);
                     },
                   ),
                 ),
@@ -204,7 +180,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-          // Input field
+          // ── Input field ──
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: MessageInputField(
@@ -219,37 +195,36 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildListView(List<ChatMessage> history) {
+    // Reverse the list so newest are at the top of the reversed view (i.e. bottom of screen)
+    final reversed = history.reversed.toList();
+
     return ListView.builder(
       controller: _scrollController,
+      reverse: true,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      itemCount: history.length,
+      itemCount: reversed.length,
       itemBuilder: (ctx, i) {
-        final msg = history[i];
-        final prev =
-        i > 0 ? history[i - 1].timestamp : null;
-        final msgDate = msg.timestamp;
+        final msg = reversed[i];
+        final prev = i + 1 < reversed.length ? reversed[i + 1].timestamp : null;
         final showDivider = prev == null ||
-            prev.year != msgDate.year ||
-            prev.month != msgDate.month ||
-            prev.day != msgDate.day;
+            prev.year != msg.timestamp.year ||
+            prev.month != msg.timestamp.month ||
+            prev.day != msg.timestamp.day;
 
-        String dateLabel;
         final now = DateTime.now();
-        if (now.difference(msgDate).inDays == 0) {
-          dateLabel = 'Today';
-        } else if (now.difference(msgDate).inDays == 1) {
-          dateLabel = 'Yesterday';
-        } else {
-          dateLabel = DateFormat('MMM d, yyyy').format(msgDate);
-        }
+        final diff = now.difference(msg.timestamp).inDays;
+        final dateLabel = diff == 0
+            ? 'Today'
+            : diff == 1
+            ? 'Yesterday'
+            : DateFormat('MMM d, yyyy').format(msg.timestamp);
 
         return GestureDetector(
           key: ValueKey(msg.id),
           onLongPress: () => _showMessageOptions(ctx, msg),
           child: Column(
-            crossAxisAlignment: msg.isSender
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
+            crossAxisAlignment:
+            msg.isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
               if (showDivider) DateDivider(date: dateLabel),
               MessageBubble(msg: msg),
@@ -268,11 +243,18 @@ class _ChatScreenState extends State<ChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.edit),
-              title: const Text('Edit'),
+              leading:
+              Icon(msg.imageBase64 != null ? Icons.image : Icons.edit),
+              title: Text(msg.imageBase64 != null
+                  ? 'Edit Image'
+                  : 'Edit Text'),
               onTap: () {
                 Navigator.pop(ctx);
-                _editMessage(ctx, msg);
+                if (msg.imageBase64 != null) {
+                  _editImage(ctx, msg);
+                } else {
+                  _editMessage(ctx, msg);
+                }
               },
             ),
             ListTile(
@@ -301,13 +283,11 @@ class _ChatScreenState extends State<ChatScreen> {
         content: TextField(controller: controller),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, null),
-            child: const Text('Cancel'),
-          ),
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Cancel')),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Save'),
-          ),
+              onPressed: () => Navigator.pop(ctx, controller.text),
+              child: const Text('Save')),
         ],
       ),
     );
@@ -318,5 +298,17 @@ class _ChatScreenState extends State<ChatScreen> {
         newText: newText.trim(),
       );
     }
+  }
+
+  Future<void> _editImage(BuildContext ctx, ChatMessage msg) async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+    final newB64 = base64Encode(await picked.readAsBytes());
+    await _chatService.updateMessageImage(
+      friendId: widget.friend.id,
+      messageId: msg.id,
+      newImageBase64: newB64,
+    );
+    _scrollToBottom();
   }
 }

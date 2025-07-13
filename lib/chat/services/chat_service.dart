@@ -114,4 +114,35 @@ class ChatService {
 
     return Future.wait([mine.update(data), theirs.update(data)]);
   }
+
+  Future<void> updateMessageImage({
+    required String friendId,
+    required String messageId,
+    required String newImageBase64,
+  }) {
+    final mine = _db
+        .collection('Users')
+        .doc(_myUid)
+        .collection('friends')
+        .doc(friendId)
+        .collection('messages')
+        .doc(messageId);
+
+    final theirs = _db
+        .collection('Users')
+        .doc(friendId)
+        .collection('friends')
+        .doc(_myUid)
+        .collection('messages')
+        .doc(messageId);
+
+    final data = {
+      'imageBase64': newImageBase64,
+      'edited': true,
+    };
+    return Future.wait([
+      mine.update(data),
+      theirs.update(data),
+    ]);
+  }
 }
