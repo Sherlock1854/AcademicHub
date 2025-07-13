@@ -1,3 +1,6 @@
+// lib/screens/widgets/message_bubble.dart
+
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/chat_message.dart';
@@ -13,22 +16,25 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSender = msg.isSender;
-    final bgColor = msg.imageUrl != null
+    final hasImage = msg.imageBase64 != null;
+    final bgColor = hasImage
         ? Colors.transparent
         : (isSender ? Colors.blue : const Color(0xFFF0F0F0));
     final borderRadius = BorderRadius.circular(20);
     final maxWidth = MediaQuery.of(context).size.width * 0.7;
 
     Widget content;
-    if (msg.imageUrl != null) {
+    if (hasImage) {
+      // Decode Base64 and display
+      final bytes = base64Decode(msg.imageBase64!);
       content = ClipRRect(
         borderRadius: borderRadius,
-        child: Image.network(
-          msg.imageUrl!,
+        child: Image.memory(
+          bytes,
           fit: BoxFit.cover,
           width: maxWidth,
+          gaplessPlayback: true,
           errorBuilder: (context, error, stackTrace) {
-            // Fallback to local fail.png on any load error
             return Image.asset(
               'assets/images/fail.png',
               fit: BoxFit.cover,
@@ -38,8 +44,9 @@ class MessageBubble extends StatelessWidget {
         ),
       );
     } else {
+      final display = msg.text! + (msg.edited ? ' (edited)' : '');
       content = Text(
-        msg.text ?? '',
+        display,
         style: TextStyle(
           color: isSender ? Colors.white : Colors.black,
           fontSize: 16,

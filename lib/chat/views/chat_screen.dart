@@ -1,22 +1,21 @@
 // lib/screens/chat_screen.dart
 
-import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+
 import '../../friend/models/friend.dart';
-import '../services/chat_service.dart';
 import '../models/chat_message.dart';
+import '../services/chat_service.dart';
+import '../services/gemini_service.dart';
 import 'widgets/date_divider.dart';
 import 'widgets/message_bubble.dart';
 import 'widgets/message_input_field.dart';
-import 'package:intl/intl.dart';
-import '../services/gemini_service.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
 class ChatScreen extends StatefulWidget {
   final Friend friend;
-
   const ChatScreen({Key? key, required this.friend}) : super(key: key);
 
   @override
@@ -31,158 +30,101 @@ class _ChatScreenState extends State<ChatScreen> {
 
   late final Stream<List<ChatMessage>> _messages$;
   final List<ChatMessage> _history = [];
-
-  bool _isUploading = false;
+  bool _didInitialScroll = false;
 
   @override
   void initState() {
     super.initState();
 
     if (widget.friend.id != 'chatbot') {
-      // Real‐user chat: listen under Users/{me}/friends/{friendId}/messages
       _messages$ = _chatService.messagesStream(widget.friend.id);
     } else {
-      // Bot chat: seed a welcome message
+      final now = DateTime.now();
       _history.add(
         ChatMessage(
+          id: 'bot_welcome',
           text: '👋 Hi! I\'m ChatBot. Ask me anything.',
-          imageUrl: null,
-          timestamp: DateTime.now(),
+          imageBase64: null,
+          timestamp: now,
           isSender: false,
         ),
       );
     }
   }
 
+  /// Jump to bottom of the scroll.
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(
+          _scrollController.position.maxScrollExtent,
+        );
+      }
+    });
+  }
+
   Future<void> _handleSend(String text) async {
+    final now = DateTime.now();
+    final msgId = now.millisecondsSinceEpoch.toString();
     final userMsg = ChatMessage(
+      id: msgId,
       text: text,
-      imageUrl: null,
-      timestamp: DateTime.now(),
+      imageBase64: null,
+      timestamp: now,
       isSender: true,
     );
 
     if (widget.friend.id == 'chatbot') {
-      // ── BOT MODE ──
       setState(() => _history.add(userMsg));
       _scrollToBottom();
-
       try {
         final reply = await _botService.ask(text);
-        setState(
-          () => _history.add(
-            ChatMessage(
-              text: reply,
-              imageUrl: null,
-              timestamp: DateTime.now(),
-              isSender: false,
-            ),
+        final replyId = 'bot_${DateTime.now().millisecondsSinceEpoch}';
+        setState(() => _history.add(
+          ChatMessage(
+            id: replyId,
+            text: reply,
+            imageBase64: null,
+            timestamp: DateTime.now(),
+            isSender: false,
           ),
-        );
-      } catch (e) {
-        setState(
-          () => _history.add(
-            ChatMessage(
-              text: '⚠️ Error: $e',
-              imageUrl: null,
-              timestamp: DateTime.now(),
-              isSender: false,
-            ),
-          ),
-        );
-      }
-
+        ));
+      } catch (_) {}
       _scrollToBottom();
       return;
     }
 
-    // ── FIRESTORE MODE ──
-    setState(() => _history.add(userMsg)); // optimistic UI
+    // Firestore mode
+    setState(() => _history.add(userMsg));
+    await _chatService.sendMessage(
+      friendId: widget.friend.id,
+      text: text,
+    );
     _scrollToBottom();
-
-    await _chatService.sendMessage(friendId: widget.friend.id, text: text);
-    // real data will stream in via messagesStream
   }
 
   Future<void> _handlePickImage() async {
     if (widget.friend.id == 'chatbot') return;
     final picked = await _picker.pickImage(source: ImageSource.gallery);
     if (picked == null) return;
-
-    setState(() => _isUploading = true);
-    try {
-      final file = File(picked.path);
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-      // ← use instanceFor(...) here
-      final storage = FirebaseStorage.instanceFor(
-        bucket: 'gs://academichub-c1068.firebasestorage.app',
-      );
-      final storageRef = storage
-          .ref()
-          .child('chat_images')
-          .child(widget.friend.id)
-          .child(fileName);
-
-      final snapshot = await storageRef.putFile(file).whenComplete(() {});
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      await _chatService.sendMessage(
-        friendId: widget.friend.id,
-        imageUrl: downloadUrl,
-      );
-    } catch (e, st) {
-      debugPrint('🔥 upload error: $e\n$st');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Image upload failed: $e')),
-      );
-    } finally {
-      setState(() => _isUploading = false);
-    }
+    final b64 = base64Encode(await picked.readAsBytes());
+    await _chatService.sendMessage(
+      friendId: widget.friend.id,
+      imageBase64: b64,
+    );
+    _scrollToBottom();
   }
 
   Future<void> _handleTakePhoto() async {
     if (widget.friend.id == 'chatbot') return;
     final picked = await _picker.pickImage(source: ImageSource.camera);
     if (picked == null) return;
-
-    setState(() => _isUploading = true);
-    try {
-      final file = File(picked.path);
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-      final storage = FirebaseStorage.instanceFor(
-        bucket: 'gs://academichub-c1068.firebasestorage.app',
-      );
-      final storageRef = storage
-          .ref()
-          .child('chat_images')
-          .child(widget.friend.id)
-          .child(fileName);
-
-      final snapshot = await storageRef.putFile(file).whenComplete(() {});
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      await _chatService.sendMessage(
-        friendId: widget.friend.id,
-        imageUrl: downloadUrl,
-      );
-    } catch (e, st) {
-      debugPrint('🔥 camera upload error: $e\n$st');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Photo upload failed: $e')),
-      );
-    } finally {
-      setState(() => _isUploading = false);
-    }
-  }
-
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      }
-    });
+    final b64 = base64Encode(await picked.readAsBytes());
+    await _chatService.sendMessage(
+      friendId: widget.friend.id,
+      imageBase64: b64,
+    );
+    _scrollToBottom();
   }
 
   @override
@@ -203,11 +145,8 @@ class _ChatScreenState extends State<ChatScreen> {
             CircleAvatar(
               radius: 20,
               backgroundImage: NetworkImage(widget.friend.imageUrl),
-              onBackgroundImageError: (_, __) {
-                // rebuild to pick up the AssetImage fallback
-                setState(() {});
-              },
-              foregroundImage: AssetImage('assets/images/fail.png'),
+              onBackgroundImageError: (_, __) => setState(() {}),
+              foregroundImage: const AssetImage('assets/images/fail.png'),
             ),
             const SizedBox(width: 12),
             Text(
@@ -230,22 +169,36 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  child:
-                      isBot
-                          ? _buildListView(_history)
-                          : StreamBuilder<List<ChatMessage>>(
-                            stream: _messages$,
-                            builder: (ctx, snap) {
-                              if (snap.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              }
-                              final history = snap.data ?? [];
-                              return _buildListView(history);
-                            },
-                          ),
+                  child: isBot
+                      ? _buildListView(_history)
+                      : StreamBuilder<List<ChatMessage>>(
+                    stream: _messages$,
+                    builder: (ctx, snap) {
+                      if (snap.hasError) {
+                        return Center(child: Text('Error: ${snap.error}'));
+                      }
+                      if (!snap.hasData) {
+                        return const Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      }
+                      final history = snap.data!;
+
+                      // ── First-time scroll when messages arrive ──
+                      if (!_didInitialScroll &&
+                          history.isNotEmpty &&
+                          _scrollController.hasClients) {
+                        _didInitialScroll = true;
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _scrollController.jumpTo(
+                            _scrollController.position.maxScrollExtent,
+                          );
+                        });
+                      }
+
+                      return _buildListView(history);
+                    },
+                  ),
                 ),
               ),
             ),
@@ -266,23 +219,22 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildListView(List<ChatMessage> history) {
-    _scrollToBottom();
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       itemCount: history.length,
       itemBuilder: (ctx, i) {
         final msg = history[i];
-        final prev = i > 0 ? history[i - 1].timestamp : null;
+        final prev =
+        i > 0 ? history[i - 1].timestamp : null;
         final msgDate = msg.timestamp;
-        final showDivider =
-            prev == null ||
+        final showDivider = prev == null ||
             prev.year != msgDate.year ||
             prev.month != msgDate.month ||
             prev.day != msgDate.day;
 
-        final now = DateTime.now();
         String dateLabel;
+        final now = DateTime.now();
         if (now.difference(msgDate).inDays == 0) {
           dateLabel = 'Today';
         } else if (now.difference(msgDate).inDays == 1) {
@@ -291,15 +243,80 @@ class _ChatScreenState extends State<ChatScreen> {
           dateLabel = DateFormat('MMM d, yyyy').format(msgDate);
         }
 
-        return Column(
-          crossAxisAlignment:
-              msg.isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            if (showDivider) DateDivider(date: dateLabel),
-            MessageBubble(msg: msg),
-          ],
+        return GestureDetector(
+          key: ValueKey(msg.id),
+          onLongPress: () => _showMessageOptions(ctx, msg),
+          child: Column(
+            crossAxisAlignment: msg.isSender
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            children: [
+              if (showDivider) DateDivider(date: dateLabel),
+              MessageBubble(msg: msg),
+            ],
+          ),
         );
       },
     );
+  }
+
+  void _showMessageOptions(BuildContext ctx, ChatMessage msg) {
+    showModalBottomSheet(
+      context: ctx,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Edit'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _editMessage(ctx, msg);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete),
+              title: const Text('Delete'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _chatService.deleteMessage(
+                  friendId: widget.friend.id,
+                  messageId: msg.id,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editMessage(BuildContext ctx, ChatMessage msg) async {
+    final controller = TextEditingController(text: msg.text);
+    final newText = await showDialog<String>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title: const Text('Edit message'),
+        content: TextField(controller: controller),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (newText != null && newText.trim().isNotEmpty) {
+      await _chatService.updateMessage(
+        friendId: widget.friend.id,
+        messageId: msg.id,
+        newText: newText.trim(),
+      );
+    }
   }
 }

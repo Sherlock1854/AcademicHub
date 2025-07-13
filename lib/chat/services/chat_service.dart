@@ -11,69 +11,107 @@ class ChatService {
   /// Stream of messages exchanged with [friendId], oldest first.
   Stream<List<ChatMessage>> messagesStream(String friendId) {
     final col = _db
-        .collection('Users')
-        .doc(_myUid)
-        .collection('friends')
-        .doc(friendId)
+        .collection('Users').doc(_myUid)
+        .collection('friends').doc(friendId)
         .collection('messages');
 
     return col
         .orderBy('timestamp', descending: false)
         .snapshots()
-        .map((snap) => snap.docs.map(_fromDoc).toList());
+        .map((snap) =>
+    // map, filter out any docs without text or imageBase64
+    snap.docs
+        .map((d) => ChatMessage.fromDoc(d))
+        .where((m) => m.text != null || m.imageBase64 != null)
+        .toList()
+    );
   }
 
-  /// Send [text] or [imageUrl] to [friendId].
-  /// Duplicates it into both users' message subcollections.
+  /// Send [text] or [imageBase64] to [friendId], using the same doc ID on both sides.
   Future<void> sendMessage({
     required String friendId,
     String? text,
-    String? imageUrl,
+    String? imageBase64,
   }) async {
-    assert(text != null || imageUrl != null,
-    'Either text or imageUrl must be provided');
+    assert(
+    text != null || imageBase64 != null,
+    'Either text or imageBase64 must be provided',
+    );
 
     final now = FieldValue.serverTimestamp();
     final myCol = _db
-        .collection('Users')
-        .doc(_myUid)
-        .collection('friends')
-        .doc(friendId)
+        .collection('Users').doc(_myUid)
+        .collection('friends').doc(friendId)
         .collection('messages');
     final theirCol = _db
-        .collection('Users')
-        .doc(friendId)
-        .collection('friends')
-        .doc(_myUid)
+        .collection('Users').doc(friendId)
+        .collection('friends').doc(_myUid)
         .collection('messages');
 
+    // 1. Create a new doc ref (generates a shared ID)
+    final docRef = myCol.doc();
+    final msgId = docRef.id;
+
+    // 2. Prepare payloads
     final dataForMe = {
       'text': text,
-      'imageUrl': imageUrl,
+      'imageBase64': imageBase64,
       'timestamp': now,
       'isSender': true,
     };
     final dataForThem = {
       'text': text,
-      'imageUrl': imageUrl,
+      'imageBase64': imageBase64,
       'timestamp': now,
       'isSender': false,
     };
 
-    // write both docs in parallel
+    // 3. Write both with the same ID
     await Future.wait([
-      myCol.add(dataForMe),
-      theirCol.add(dataForThem),
+      docRef.set(dataForMe),
+      theirCol.doc(msgId).set(dataForThem),
     ]);
   }
 
-  ChatMessage _fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data();
-    return ChatMessage(
-      text: data['text'] as String?,
-      imageUrl: data['imageUrl'] as String?,
-      timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      isSender: data['isSender'] as bool? ?? false,
-    );
+  /// Delete the message with [messageId] in both users' subcollections.
+  Future<void> deleteMessage({
+    required String friendId,
+    required String messageId,
+  }) {
+    final mine = _db
+        .collection('Users').doc(_myUid)
+        .collection('friends').doc(friendId)
+        .collection('messages').doc(messageId);
+
+    final theirs = _db
+        .collection('Users').doc(friendId)
+        .collection('friends').doc(_myUid)
+        .collection('messages').doc(messageId);
+
+    return Future.wait([mine.delete(), theirs.delete()]);
+  }
+
+  /// Update the text of the message in both users' subcollections.
+  Future<void> updateMessage({
+    required String friendId,
+    required String messageId,
+    required String newText,
+  }) {
+    final mine = _db
+        .collection('Users').doc(_myUid)
+        .collection('friends').doc(friendId)
+        .collection('messages').doc(messageId);
+
+    final theirs = _db
+        .collection('Users').doc(friendId)
+        .collection('friends').doc(_myUid)
+        .collection('messages').doc(messageId);
+
+    final data = {
+      'text': newText,
+      'edited': true,
+    };
+
+    return Future.wait([mine.update(data), theirs.update(data)]);
   }
 }
