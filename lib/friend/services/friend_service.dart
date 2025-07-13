@@ -6,36 +6,36 @@ import '../models/friend.dart';
 
 class FriendService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-
   String get _myUid => FirebaseAuth.instance.currentUser!.uid;
 
   CollectionReference<Map<String, dynamic>> get _col =>
-      _db
-          .collection('Users')
-          .doc(_myUid)
-          .collection('friends');
+      _db.collection('Users').doc(_myUid).collection('friends');
 
-  /// Real-time stream of **my** friends
+  /// Real-time stream of **my** friends, sorted by lastTimestamp descending
   Stream<List<Friend>> friendsStream() {
     return _col
-        .orderBy('time', descending: false)
+        .orderBy('lastTimestamp', descending: true)
         .snapshots()
         .map((snap) => snap.docs
         .map((doc) => Friend.fromMap(doc.id, doc.data()))
-        .toList());
+        .toList()
+    );
   }
 
   /// Add or update a friend under my subcollection
   Future<void> setFriend(Friend f) {
-    return _col
-        .doc(f.id)
-        .set(f.toMap());
+    return _col.doc(f.id).set(f.toMap());
   }
 
   /// Remove a friend by ID from **my** subcollection
   Future<void> deleteFriend(String id) {
+    return _col.doc(id).delete();
+  }
+
+  /// Mark a conversation as read (clear the unread badge)
+  Future<void> markRead(String friendId) {
     return _col
-        .doc(id)
-        .delete();
+        .doc(friendId)
+        .set({ 'hasUnreadMessages': false }, SetOptions(merge: true));
   }
 }

@@ -1,60 +1,39 @@
 // lib/notifications/services/notification_service.dart
 
-import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/notification_item.dart';
 
 class NotificationService {
-  final List<NotificationItem> _storage = [
-    NotificationItem(
-      id: '1',
-      title: 'Tech Updates',
-      category: 'Weekly Newsletter',
-      description: 'Here are this week’s top tech stories…',
-      timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-      isStarred: true,
-    ),
-    NotificationItem(
-      id: '2',
-      title: 'Your Bank',
-      category: 'Security Alert',
-      description: 'Suspicious activity detected on your account.',
-      timestamp: DateTime.now().subtract(const Duration(days: 2)),
-      isStarred: false,
-    ),
-    NotificationItem(
-      id: '3',
-      title: 'Account Services',
-      category: 'Password Changed',
-      description: 'Your password was successfully updated.',
-      timestamp: DateTime.now().subtract(const Duration(days: 4)),
-      isStarred: false,
-    ),
-  ];
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  final _controller = StreamController<List<NotificationItem>>.broadcast();
+  String get _uid => FirebaseAuth.instance.currentUser!.uid;
 
-  NotificationService() {
-    // seed initial data
-    _controller.add(List.from(_storage));
+  CollectionReference<Map<String, dynamic>> get _col =>
+      _db.collection('Users').doc(_uid).collection('notifications');
+
+  /// Stream all notifications, newest first
+  Stream<List<NotificationItem>> get notificationsStream {
+    return _col
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snap) {
+      return snap.docs
+          .map((doc) => NotificationItem.fromMap(doc.id, doc.data()))
+          .toList();
+    });
   }
 
-  Stream<List<NotificationItem>> get notificationsStream => _controller.stream;
-
-  Future<void> toggleStar(String id) async {
-    final idx = _storage.indexWhere((n) => n.id == id);
-    if (idx != -1) {
-      _storage[idx].isStarred = !_storage[idx].isStarred;
-      _controller.add(List.from(_storage));
-    }
+  /// Toggle the `isStarred` flag on a notification
+  Future<void> toggleStar(String id) {
+    final doc = _col.doc(id);
+    return doc.update({
+      'isStarred': FieldValue.serverTimestamp(), // or invert existing flag if you read it client-side
+    });
   }
 
-  Future<void> markRead(String id) async {
-    // e.g. remove or update item
-    _storage.removeWhere((n) => n.id == id);
-    _controller.add(List.from(_storage));
-  }
-
-  void dispose() {
-    _controller.close();
+  /// Mark as read by deleting the document
+  Future<void> markRead(String id) {
+    return _col.doc(id).delete();
   }
 }

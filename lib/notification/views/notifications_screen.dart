@@ -16,12 +16,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   final _service = NotificationService();
 
   @override
-  void dispose() {
-    _service.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -33,11 +27,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
       body: StreamBuilder<List<NotificationItem>>(
         stream: _service.notificationsStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+        builder: (context, snap) {
+          if (!snap.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          final items = snapshot.data ?? [];
+          final items = snap.data!;
           if (items.isEmpty) {
             return const Center(
               child: Text('No notifications',

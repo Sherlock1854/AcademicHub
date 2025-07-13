@@ -72,26 +72,30 @@ class ChatService {
       theirCol.doc(msgId).set(dataForThem),
     ]);
 
-    final summary = {
+    final summaryForMe = {
       'lastText': text,
       'lastIsImage': imageBase64 != null,
-      'lastTimestamp': FieldValue.serverTimestamp(),
-      // if you capture avatarBase64 at friend-creation time,
-      // you don’t need to change it here
-      'hasUnreadMessages': true,  // or whatever your logic is
+      'lastTimestamp': now,
+      'lastIsSender': true,          // <–– you sent it
+      'hasUnreadMessages': false,    // I just sent it, so I’ve “read” it
+    };
+    final summaryForThem = {
+      'lastText': text,
+      'lastIsImage': imageBase64 != null,
+      'lastTimestamp': now,
+      'lastIsSender': false,         // <–– they didn’t send it
+      'hasUnreadMessages': true,     // they haven’t opened yet
     };
 
     await Future.wait([
-      // update my copy of the friend-doc
       _db
           .collection('Users').doc(_myUid)
           .collection('friends').doc(friendId)
-          .update(summary),
-      // update their copy
+          .update(summaryForMe),
       _db
           .collection('Users').doc(friendId)
           .collection('friends').doc(_myUid)
-          .update(summary),
+          .update(summaryForThem),
     ]);
   }
 
