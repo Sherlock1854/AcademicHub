@@ -203,6 +203,11 @@ class _ChatScreenState extends State<ChatScreen> {
             CircleAvatar(
               radius: 20,
               backgroundImage: NetworkImage(widget.friend.imageUrl),
+              onBackgroundImageError: (_, __) {
+                // rebuild to pick up the AssetImage fallback
+                setState(() {});
+              },
+              foregroundImage: AssetImage('assets/images/fail.png'),
             ),
             const SizedBox(width: 12),
             Text(

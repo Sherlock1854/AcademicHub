@@ -27,7 +27,14 @@ class MessageBubble extends StatelessWidget {
           msg.imageUrl!,
           fit: BoxFit.cover,
           width: maxWidth,
-          // you can set a height or let it size itself
+          errorBuilder: (context, error, stackTrace) {
+            // Fallback to local fail.png on any load error
+            return Image.asset(
+              'assets/images/fail.png',
+              fit: BoxFit.cover,
+              width: maxWidth,
+            );
+          },
         ),
       );
     } else {
