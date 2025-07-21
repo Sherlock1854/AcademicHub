@@ -19,7 +19,8 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   final _service = FriendRequestService();
 
   late String _myUid;
-  Set<String> _friendIds = {};
+  Set<String> _friendIds = {};       // already-friends
+  Set<String> _pendingIds = {};      // newly requested
   List<UserResult> _results = [];
   bool _isSearching = false;
 
@@ -57,8 +58,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
     });
 
     try {
-      final usersRef =
-      FirebaseFirestore.instance.collection('Users');
+      final usersRef = FirebaseFirestore.instance.collection('Users');
       final snap = await usersRef
           .where('email', isGreaterThanOrEqualTo: query)
           .where('email', isLessThanOrEqualTo: '$query\uf8ff')
@@ -72,8 +72,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
         return UserResult(
           id: doc.id,
           name: '$first $last'.trim(),
-          imageUrl:
-          data['imageUrl']?.toString() ?? 'https://placehold.it/48',
+          imageUrl: data['imageUrl']?.toString() ?? 'https://placehold.it/48',
         );
       }).toList();
 
@@ -100,8 +99,15 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
       imageUrl: user.imageUrl,
     );
     await _service.sendRequest(req);
-    // reload friends so we immediately hide the button
+
+    // mark locally as pending
+    setState(() {
+      _pendingIds.add(user.id);
+    });
+
+    // optionally reload actual friends
     await _loadFriendIds();
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Request sent to ${user.name}')),
     );
@@ -111,8 +117,10 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   Widget build(BuildContext ctx) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Friend',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Add Friend',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
@@ -135,8 +143,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.search),
                   onPressed: _doSearch,
@@ -166,18 +173,23 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                     final user = _results[i];
                     final isSelf = user.id == _myUid;
                     final isFriend = _friendIds.contains(user.id);
+                    final isPending = _pendingIds.contains(user.id);
 
-                    return ListTile(
-                      leading: CircleAvatar(
-                        radius: 24,
-                        backgroundImage: NetworkImage(user.imageUrl),
-                      ),
-                      title: Text(user.name,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold)),
-                      trailing: (isSelf || isFriend)
-                          ? null
-                          : ElevatedButton(
+                    Widget? button;
+                    if (isSelf || isFriend) {
+                      button = null;
+                    } else if (isPending) {
+                      button = ElevatedButton(
+                        onPressed: null,
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        child: const Text('Pending'),
+                      );
+                    } else {
+                      button = ElevatedButton(
                         onPressed: () => _sendRequest(user),
                         style: ElevatedButton.styleFrom(
                           shape: RoundedRectangleBorder(
@@ -185,7 +197,19 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                           ),
                         ),
                         child: const Text('Add'),
+                      );
+                    }
+
+                    return ListTile(
+                      leading: CircleAvatar(
+                        radius: 24,
+                        backgroundImage: NetworkImage(user.imageUrl),
                       ),
+                      title: Text(
+                        user.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      trailing: button,
                     );
                   },
                 ),
@@ -202,6 +226,7 @@ class UserResult {
   final String id;
   final String name;
   final String imageUrl;
+
   UserResult({
     required this.id,
     required this.name,

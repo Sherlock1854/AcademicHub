@@ -1,146 +1,98 @@
-// lib/widgets/friend_request_item.dart
+// lib/friend/widgets/friend_request_item.dart
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../models/friend_request.dart';
 import '../../services/friend_request_service.dart';
 
 class FriendRequestItem extends StatelessWidget {
   final FriendRequest request;
   final bool isSent;
-  final FriendRequestService _service = FriendRequestService();
 
-  FriendRequestItem({
+  const FriendRequestItem({
     Key? key,
     required this.request,
     this.isSent = false,
-  }) : super(key: key);
-
-  Future<void> _cancel(BuildContext ctx) async {
-    try {
-      await _service.cancelRequest(request.id);
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Request cancelled')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        SnackBar(content: Text('Cancel failed: $e')),
-      );
-    }
-  }
-
-  Future<void> _decline(BuildContext ctx) async {
-    try {
-      await _service.declineRequest(request.id);
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Request deleted')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        SnackBar(content: Text('Delete failed: $e')),
-      );
-    }
-  }
-
-  Future<void> _accept(BuildContext ctx) async {
-    try {
-      await _service.acceptRequest(request);
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Friend request accepted')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        SnackBar(content: Text('Confirm failed: $e')),
-      );
-    }
-  }
+  }): super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24.0),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundImage: NetworkImage(request.imageUrl),
+    final service = FriendRequestService();
+
+    // Optional: format your ISO timestamp into a short date
+    DateTime? dt = DateTime.tryParse(request.time);
+    final timeLabel = dt != null
+        ? DateFormat('MMM d').format(dt)
+        : '';
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      leading: CircleAvatar(
+        radius: 24,
+        backgroundImage: NetworkImage(request.imageUrl),
+      ),
+      title: Text(
+        request.name,
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+      subtitle: timeLabel.isNotEmpty
+          ? Text(
+        timeLabel,
+        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+      )
+          : null,
+      trailing: isSent
+      // ───────────────────────────── Sent requests ─────────────────────────────
+          ? OutlinedButton(
+        onPressed: () async {
+          await service.cancelRequest(request.id);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Cancelled request to ${request.name}')),
+          );
+        },
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(80, 36),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      request.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    Text(
-                      request.time,
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (isSent) ...[
-                      OutlinedButton(
-                        onPressed: () => _cancel(context),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          side: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(color: Colors.black),
-                        ),
-                      ),
-                    ] else ...[
-                      OutlinedButton(
-                        onPressed: () => _decline(context),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          side: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        child: const Text(
-                          'Delete',
-                          style: TextStyle(color: Colors.black),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () => _accept(context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          elevation: 2,
-                        ),
-                        child: const Text('Confirm'),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
+        ),
+        child: const Text('Cancel'),
+      )
+
+      // ─────────────────────────── Received requests ──────────────────────────
+          : Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          OutlinedButton(
+            onPressed: () async {
+              await service.declineRequest(request.id);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Declined request from ${request.name}')),
+              );
+            },
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(80, 36),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
             ),
+            child: const Text('Decline'),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () async {
+              await service.acceptRequest(request);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Accepted request from ${request.name}')),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(80, 36),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            child: const Text('Accept'),
           ),
         ],
       ),

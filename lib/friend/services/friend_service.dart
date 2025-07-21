@@ -2,6 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../chat/services/chat_service.dart';       // ← adjust path if needed
 import '../models/friend.dart';
 
 class FriendService {
@@ -11,31 +12,38 @@ class FriendService {
   CollectionReference<Map<String, dynamic>> get _col =>
       _db.collection('Users').doc(_myUid).collection('friends');
 
-  /// Real-time stream of **my** friends, sorted by lastTimestamp descending
+  /// 1) Pinned first, then most recent.
   Stream<List<Friend>> friendsStream() {
     return _col
+        .orderBy('pinned', descending: true)
         .orderBy('lastTimestamp', descending: true)
         .snapshots()
         .map((snap) => snap.docs
         .map((doc) => Friend.fromMap(doc.id, doc.data()))
-        .toList()
-    );
+        .toList());
   }
 
-  /// Add or update a friend under my subcollection
   Future<void> setFriend(Friend f) {
     return _col.doc(f.id).set(f.toMap());
   }
 
-  /// Remove a friend by ID from **my** subcollection
-  Future<void> deleteFriend(String id) {
-    return _col.doc(id).delete();
+  /// Pin/unpin a friend
+  Future<void> pinFriend(String friendId, bool pinned) {
+    return _col.doc(friendId).set({'pinned': pinned}, SetOptions(merge: true));
   }
 
-  /// Mark a conversation as read (clear the unread badge)
+  /// Delete a friend **and** their chat history
+  Future<void> deleteFriend(String friendId) async {
+    // 1) remove friend record
+    await _col.doc(friendId).delete();
+
+    // 2) cascade‐delete chat history
+    await ChatService().deleteConversation(friendId);
+  }
+
   Future<void> markRead(String friendId) {
     return _col
         .doc(friendId)
-        .set({ 'hasUnreadMessages': false }, SetOptions(merge: true));
+        .set({'hasUnreadMessages': false}, SetOptions(merge: true));
   }
 }

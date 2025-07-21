@@ -171,4 +171,36 @@ class ChatService {
       theirs.update(data),
     ]);
   }
+
+  /// Delete the entire conversation with [friendId] (all message docs
+  /// under both users' subcollections).
+  Future<void> deleteConversation(String friendId) async {
+    // References to each side’s "messages" subcollection
+    final myMsgsRef = _db
+        .collection('Users').doc(_myUid)
+        .collection('friends').doc(friendId)
+        .collection('messages');
+    final theirMsgsRef = _db
+        .collection('Users').doc(friendId)
+        .collection('friends').doc(_myUid)
+        .collection('messages');
+
+    // Batch‐delete for efficiency (Firestore limits 500 operations per batch).
+    final batch = _db.batch();
+
+    // Delete my side
+    final mineSnap = await myMsgsRef.get();
+    for (var doc in mineSnap.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // Delete their side
+    final theirSnap = await theirMsgsRef.get();
+    for (var doc in theirSnap.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // Commit all deletes at once
+    await batch.commit();
+  }
 }

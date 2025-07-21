@@ -3,12 +3,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../services/friend_service.dart';
 import '../../models/friend.dart';
 import '../../../chat/views/chat_screen.dart';
-import '../../services/friend_service.dart';
+import '../../../chat/services/chat_service.dart';  // for deletion
 
 class FriendListItem extends StatelessWidget {
   final Friend friend;
+
   const FriendListItem({Key? key, required this.friend}) : super(key: key);
 
   String _formatTimestamp(DateTime? ts) {
@@ -24,57 +26,128 @@ class FriendListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final svc = FriendService();
+    final chatSvc = ChatService();
 
-    // choose display text
-    final raw     = friend.lastIsImage ? '[picture]' : friend.lastText;
-    final subtitle= friend.lastIsSender ? 'You: $raw' : raw;
-    final time    = _formatTimestamp(friend.lastTimestamp);
+    final raw = friend.lastIsImage ? '[picture]' : friend.lastText;
+    final subtitle = friend.lastIsSender ? 'You: $raw' : raw;
+    final time = _formatTimestamp(friend.lastTimestamp);
 
-    // avatar from Base64 or fallback
     final avatar = friend.avatarBase64.isNotEmpty
         ? CircleAvatar(
       radius: 24,
-      backgroundImage: MemoryImage(base64Decode(friend.avatarBase64)),
+      backgroundImage:
+      MemoryImage(base64Decode(friend.avatarBase64)),
     )
         : const CircleAvatar(
       radius: 24,
       child: Icon(Icons.person),
     );
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: avatar,
-      title: Text(friend.name,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      ),
-      subtitle: Text(subtitle,
-        style: const TextStyle(color: Colors.grey),
-        maxLines: 1, overflow: TextOverflow.ellipsis,
-      ),
-      trailing: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (time.isNotEmpty)
-            Text(time,
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          const SizedBox(height: 4),
-          if (friend.hasUnreadMessages)
-            Container(
-              width: 10, height: 10,
-              decoration: const BoxDecoration(
-                color: Colors.blue, shape: BoxShape.circle,
+    return GestureDetector(
+      onLongPress: () => _showOptions(context, svc, chatSvc),
+      child: ListTile(
+        contentPadding:
+        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: avatar,
+        title: Text(
+          friend.name,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(color: Colors.grey),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (time.isNotEmpty)
+              Text(
+                time,
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
               ),
-            ),
-        ],
+            const SizedBox(height: 4),
+            if (friend.hasUnreadMessages)
+              Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: Colors.blue,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            if (friend.pinned)
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Icon(Icons.push_pin, size: 16, color: Colors.grey),
+              ),
+          ],
+        ),
+        onTap: () async {
+          await svc.markRead(friend.id);
+          Navigator.of(context).push(
+            MaterialPageRoute(
+                builder: (_) => ChatScreen(friend: friend)),
+          );
+        },
       ),
-      onTap: () async {
-        // clear unread flag
-        await svc.markRead(friend.id);
-        // navigate into chat
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => ChatScreen(friend: friend)),
+    );
+  }
+
+  void _showOptions(
+      BuildContext context, FriendService svc, ChatService chatSvc) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+        BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: Icon(
+                  friend.pinned ? Icons.push_pin_outlined : Icons.push_pin,
+                ),
+                title: Text(
+                  friend.pinned ? 'Unpin Friend' : 'Pin Friend',
+                ),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  await svc.pinFriend(friend.id, !friend.pinned);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        friend.pinned
+                            ? 'Unpinned ${friend.name}'
+                            : 'Pinned ${friend.name}',
+                      ),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Delete Friend'),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  await svc.deleteFriend(friend.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content:
+                      Text('Deleted ${friend.name} & chat history'),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         );
       },
     );
