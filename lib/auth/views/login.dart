@@ -4,6 +4,8 @@ import 'package:academichub/auth/auth_service.dart';
 import 'package:academichub/auth/views/register.dart';
 import 'package:academichub/auth/views/forget_password.dart';
 import 'package:academichub/dashboard/views/dashboard_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -17,41 +19,50 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscure = true;
 
   void login() async {
-    final _auth = AuthService();
+    final auth = AuthService();
 
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
-      // Await sign-in
-      await _auth.signInWithEmailPassword(
+      final credential = await auth.signInWithEmailPassword(
         loginEmailCtrl.text.trim(),
         loginPasswordCtrl.text.trim(),
       );
 
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(credential.user!.uid)
+          .get();
+
+      final role = userDoc['role'];
+
       if (!mounted) return;
+      Navigator.pop(context); // Close the loading dialog
 
-      // Remove loading dialog
-      Navigator.pop(context);
-
-      // Navigate to dashboard page using MaterialPageRoute
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const DashboardPage()),
-      );
+      // ✅ Navigate based on role
+      if (role == 'admin') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DashboardPage()),
+        );
+      } else if (role == 'co-admin') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DashboardPage()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DashboardPage()),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
-
-      // Remove loading dialog if error
-      Navigator.pop(context);
-
-      // Show error dialog
+      Navigator.pop(context); // Close the loading dialog
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -67,6 +78,7 @@ class _LoginPageState extends State<LoginPage> {
       );
     }
   }
+
 
 
   @override

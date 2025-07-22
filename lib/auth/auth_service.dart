@@ -19,15 +19,17 @@ class AuthService {
   Future<UserCredential> signUpWithEmailPassword(String email, password, firstName, surname) async {
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
-      //Save users
-      _firestore.collection("Users").doc(userCredential.user!.uid).set({
+
+      // Save user with default role: 'user'
+      await _firestore.collection("Users").doc(userCredential.user!.uid).set({
         "uid": userCredential.user!.uid,
         "email": email,
         "firstName": firstName,
         "surname": surname,
+        "role": "user",
       });
-      return userCredential;
 
+      return userCredential;
     } on FirebaseAuthException catch (e) {
       throw Exception(e.code);
     }
