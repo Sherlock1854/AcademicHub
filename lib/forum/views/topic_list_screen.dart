@@ -114,7 +114,7 @@ class _TopicListScreenState extends State<TopicListScreen> {
           builder: (_) => const AddTopicDialog(),
         ),
       ),
-      bottomNavigationBar: const AppNavigationBar(selectedIndex: 4), // Index 0 for Home
+      bottomNavigationBar: const AppNavigationBar(selectedIndex: 3), // Index 0 for Home
     );
   }
 }

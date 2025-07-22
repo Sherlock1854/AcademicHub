@@ -9,14 +9,14 @@ import 'package:intl/intl.dart';
 import '../../friend/models/friend.dart';
 import '../models/chat_message.dart';
 import '../services/chat_service.dart';
-import '../services/gemini_service.dart';
+import '../services/bot_chat_service.dart';
 import 'widgets/date_divider.dart';
 import 'widgets/message_bubble.dart';
 import 'widgets/message_input_field.dart';
 
 class ChatScreen extends StatefulWidget {
   final Friend friend;
-  const ChatScreen({super.key, required this.friend});
+  const ChatScreen({Key? key, required this.friend}) : super(key: key);
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -24,12 +24,11 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _chatService = ChatService();
-  final _botService  = GeminiService();
+  final _botService  = BotChatService();
   final _picker      = ImagePicker();
   final _scrollCtrl  = ScrollController();
 
   late final Stream<List<ChatMessage>> _messages$;
-  final List<ChatMessage> _history = [];
   bool _awaitingBot = false;
 
   bool get _isBotChat => widget.friend.id == 'chatbot';
@@ -37,24 +36,10 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-
-    if (_isBotChat) {
-      // Bot‐only: keep everything in-memory
-      _messages$ = const Stream.empty();
-      final now = DateTime.now();
-      _history.add(
-        ChatMessage(
-          id: 'bot_welcome',
-          text: '👋 I’m ChatBot. Ask me anything.',
-          imageBase64: null,
-          timestamp: now,
-          isSender: false,
-        ),
-      );
-    } else {
-      // Peer‐to‐peer: stream from Firestore
-      _messages$ = _chatService.messagesStream(widget.friend.id);
-    }
+    // pick the right stream
+    _messages$ = _isBotChat
+        ? _botService.messagesStream()
+        : _chatService.messagesStream(widget.friend.id);
   }
 
   void _scrollToBottom() {
@@ -67,56 +52,20 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.trim().isEmpty) return;
 
     if (_isBotChat) {
-      // 1) show user message locally
-      setState(() {
-        _history.add(ChatMessage(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          text: text,
-          imageBase64: null,
-          timestamp: DateTime.now(),
-          isSender: true,
-        ));
-        _awaitingBot = true;
-      });
-      _scrollToBottom();
-
-      // 2) ask Gemini and show its reply
-      try {
-        final reply = await _botService.askText(text);
-        setState(() {
-          _history.add(ChatMessage(
-            id: 'bot_${DateTime.now().millisecondsSinceEpoch}',
-            text: reply,
-            imageBase64: null,
-            timestamp: DateTime.now(),
-            isSender: false,
-          ));
-        });
-      } catch (e) {
-        setState(() {
-          _history.add(ChatMessage(
-            id: 'bot_error_${DateTime.now().millisecondsSinceEpoch}',
-            text: '⚠️ Bot error: $e',
-            imageBase64: null,
-            timestamp: DateTime.now(),
-            isSender: false,
-          ));
-        });
-      } finally {
-        setState(() => _awaitingBot = false);
-        _scrollToBottom();
-      }
+      setState(() => _awaitingBot = true);
+      await _botService.askAndSave(text);
+      setState(() => _awaitingBot = false);
     } else {
-      // peer-to-peer: send via Firestore
       await _chatService.sendMessage(
         friendId: widget.friend.id,
         text: text,
       );
-      _scrollToBottom();
     }
+    _scrollToBottom();
   }
 
   Future<void> _handlePickImage() async {
+    if (_isBotChat) return; // no images in bot chat
     final file = await _picker.pickImage(source: ImageSource.gallery);
     if (file == null) return;
     final b64 = base64Encode(await file.readAsBytes());
@@ -128,6 +77,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _handleTakePhoto() async {
+    if (_isBotChat) return;
     final file = await _picker.pickImage(source: ImageSource.camera);
     if (file == null) return;
     final b64 = base64Encode(await file.readAsBytes());
@@ -164,7 +114,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          // message list
+          //── Message List ───────────────────────────────────────────
           Expanded(
             child: Padding(
               padding:
@@ -176,14 +126,11 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  child: _isBotChat
-                      ? _buildListView(_history)
-                      : StreamBuilder<List<ChatMessage>>(
+                  child: StreamBuilder<List<ChatMessage>>(
                     stream: _messages$,
                     builder: (ctx, snap) {
                       if (snap.hasError) {
-                        return Center(
-                            child: Text('Error: ${snap.error}'));
+                        return Center(child: Text('Error: ${snap.error}'));
                       }
                       if (!snap.hasData) {
                         return const Center(
@@ -197,19 +144,18 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-          // input bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: SizedBox(
-              height: _isBotChat ? 80 : 56,
+          //── Input Bar ───────────────────────────────────────────────
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: MessageInputField(
                 isBot: _isBotChat,
                 onSend: _awaitingBot
                     ? (msg) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                        content:
-                        Text('Please wait for bot reply…')),
+                        content: Text('Please wait for bot reply…')),
                   );
                 }
                     : _handleSend,
@@ -232,15 +178,16 @@ class _ChatScreenState extends State<ChatScreen> {
       const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       itemCount: rev.length,
       itemBuilder: (ctx, i) {
-        final msg = rev[i];
+        final msg  = rev[i];
         final prev = i + 1 < rev.length ? rev[i + 1] : null;
 
         final showDivider = prev == null ||
-            prev.timestamp.year != msg.timestamp.year ||
+            prev.timestamp.year  != msg.timestamp.year ||
             prev.timestamp.month != msg.timestamp.month ||
-            prev.timestamp.day != msg.timestamp.day;
+            prev.timestamp.day   != msg.timestamp.day;
 
-        final diff = DateTime.now().difference(msg.timestamp).inDays;
+        final diff =
+            DateTime.now().difference(msg.timestamp).inDays;
         final dateLabel = diff == 0
             ? 'Today'
             : diff == 1
@@ -248,6 +195,22 @@ class _ChatScreenState extends State<ChatScreen> {
             : DateFormat('MMM d, yyyy')
             .format(msg.timestamp);
 
+        final bubble = MessageBubble(msg: msg);
+
+        // Bot chat: no long-press
+        if (_isBotChat) {
+          return Column(
+            crossAxisAlignment: msg.isSender
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            children: [
+              if (showDivider) DateDivider(date: dateLabel),
+              bubble,
+            ],
+          );
+        }
+
+        // Peer chat: allow edit/delete
         return GestureDetector(
           key: ValueKey(msg.id),
           onLongPress: () => _showMessageOptions(context, msg),
@@ -257,7 +220,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 : CrossAxisAlignment.start,
             children: [
               if (showDivider) DateDivider(date: dateLabel),
-              MessageBubble(msg: msg),
+              bubble,
             ],
           ),
         );
@@ -271,11 +234,10 @@ class _ChatScreenState extends State<ChatScreen> {
       builder: (_) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(
-            leading: Icon(
-                msg.imageBase64 != null ? Icons.image : Icons.edit),
-            title: Text(msg.imageBase64 != null
-                ? 'Edit Image'
-                : 'Edit Text'),
+            leading:
+            Icon(msg.imageBase64 != null ? Icons.image : Icons.edit),
+            title: Text(
+                msg.imageBase64 != null ? 'Edit Image' : 'Edit Text'),
             onTap: () {
               Navigator.pop(ctx);
               if (msg.imageBase64 != null) {
@@ -301,17 +263,13 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Future<void> _editMessage(
-      BuildContext ctx, ChatMessage msg) async {
+  Future<void> _editMessage(BuildContext ctx, ChatMessage msg) async {
     final controller = TextEditingController(text: msg.text);
     final newText = await showDialog<String>(
       context: ctx,
       builder: (_) => AlertDialog(
         title: const Text('Edit message'),
-        content: TextField(
-          controller: controller,
-          maxLines: 3,
-        ),
+        content: TextField(controller: controller, maxLines: 3),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, null),
@@ -332,8 +290,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _editImage(
-      BuildContext ctx, ChatMessage msg) async {
+  Future<void> _editImage(BuildContext ctx, ChatMessage msg) async {
     final picked =
     await _picker.pickImage(source: ImageSource.gallery);
     if (picked == null) return;
