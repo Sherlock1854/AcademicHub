@@ -1,6 +1,7 @@
 // lib/screens/chat_screen.dart
 
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -29,6 +30,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   late final Stream<List<ChatMessage>> _messages$;
   final List<ChatMessage> _history = [];
+  bool _awaitingBot = false;
 
   @override
   void initState() {
@@ -49,7 +51,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  /// Jump to the "start" when reversed==true (i.e. bottom of the chat)
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -59,8 +60,10 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _handleSend(String text) async {
+    if (text.trim().isEmpty) return;
     final now = DateTime.now();
     final msgId = now.millisecondsSinceEpoch.toString();
+
     final userMsg = ChatMessage(
       id: msgId,
       text: text,
@@ -69,13 +72,22 @@ class _ChatScreenState extends State<ChatScreen> {
       isSender: true,
     );
 
-    if (widget.friend.id == 'chatbot') {
-      setState(() => _history.add(userMsg));
-      _scrollToBottom();
+    final isBot = widget.friend.id == 'chatbot';
+
+    setState(() {
+      _history.add(userMsg);
+      if (isBot) _awaitingBot = true;
+    });
+    _scrollToBottom();
+
+    if (isBot) {
       try {
+        debugPrint('⏳ Asking Gemini: $text');
         final reply = await _botService.ask(text);
-        setState(
-          () => _history.add(
+        debugPrint('✅ Gemini replied: $reply');
+
+        setState(() {
+          _history.add(
             ChatMessage(
               id: 'bot_${DateTime.now().millisecondsSinceEpoch}',
               text: reply,
@@ -83,16 +95,33 @@ class _ChatScreenState extends State<ChatScreen> {
               timestamp: DateTime.now(),
               isSender: false,
             ),
-          ),
-        );
-      } catch (_) {}
-      _scrollToBottom();
+          );
+        });
+      } catch (err, stack) {
+        debugPrint('❌ Gemini error: $err\n$stack');
+        setState(() {
+          _history.add(
+            ChatMessage(
+              id: 'bot_error_${DateTime.now().millisecondsSinceEpoch}',
+              text: '⚠️ Bot error: ${err.toString()}',
+              imageBase64: null,
+              timestamp: DateTime.now(),
+              isSender: false,
+            ),
+          );
+        });
+      } finally {
+        setState(() => _awaitingBot = false);
+        _scrollToBottom();
+      }
       return;
     }
 
-    // Firestore mode – optimistic add
-    setState(() => _history.add(userMsg));
-    await _chatService.sendMessage(friendId: widget.friend.id, text: text);
+    // Firestore mode
+    await _chatService.sendMessage(
+      friendId: widget.friend.id,
+      text: text,
+    );
     _scrollToBottom();
   }
 
@@ -123,11 +152,10 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final isBot = widget.friend.id == 'chatbot';
-
     final avatar = widget.friend.avatarBase64.isNotEmpty
-            ? MemoryImage(base64Decode(widget.friend.avatarBase64))
-            : const AssetImage('assets/images/avatar_placeholder.png')
-                as ImageProvider;
+        ? MemoryImage(base64Decode(widget.friend.avatarBase64))
+        : const AssetImage('assets/images/avatar_placeholder.png')
+    as ImageProvider;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -152,10 +180,10 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          // ── Chat list ──
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFFF7F7F7),
@@ -163,36 +191,39 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  child:
-                      isBot
-                          ? _buildListView(_history)
-                          : StreamBuilder<List<ChatMessage>>(
-                            stream: _messages$,
-                            builder: (ctx, snap) {
-                              if (snap.hasError) {
-                                return Center(
-                                  child: Text('Error: ${snap.error}'),
-                                );
-                              }
-                              if (!snap.hasData) {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              }
-                              // no more manual initial scroll!
-                              return _buildListView(snap.data!);
-                            },
-                          ),
+                  child: isBot
+                      ? _buildListView(_history)
+                      : StreamBuilder<List<ChatMessage>>(
+                    stream: _messages$,
+                    builder: (ctx, snap) {
+                      if (snap.hasError) {
+                        return Center(
+                          child: Text('Error: ${snap.error}'),
+                        );
+                      }
+                      if (!snap.hasData) {
+                        return const Center(
+                            child: CircularProgressIndicator());
+                      }
+                      return _buildListView(snap.data!);
+                    },
+                  ),
                 ),
               ),
             ),
           ),
-
-          // ── Input field ──
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: MessageInputField(
-              onSend: _handleSend,
+              onSend: _awaitingBot
+                  ? (_) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please wait for bot reply…'),
+                  ),
+                );
+              }
+                  : _handleSend,
               onImagePressed: _handlePickImage,
               onCameraPressed: _handleTakePhoto,
             ),
@@ -203,9 +234,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildListView(List<ChatMessage> history) {
-    // Reverse the list so newest are at the top of the reversed view (i.e. bottom of screen)
     final reversed = history.reversed.toList();
-
     return ListView.builder(
       controller: _scrollController,
       reverse: true,
@@ -213,30 +242,30 @@ class _ChatScreenState extends State<ChatScreen> {
       itemCount: reversed.length,
       itemBuilder: (ctx, i) {
         final msg = reversed[i];
-        final prev = i + 1 < reversed.length ? reversed[i + 1].timestamp : null;
-        final showDivider =
-            prev == null ||
+        final prev = i + 1 < reversed.length
+            ? reversed[i + 1].timestamp
+            : null;
+
+        final showDivider = prev == null ||
             prev.year != msg.timestamp.year ||
             prev.month != msg.timestamp.month ||
             prev.day != msg.timestamp.day;
 
         final now = DateTime.now();
         final diff = now.difference(msg.timestamp).inDays;
-        final dateLabel =
-            diff == 0
-                ? 'Today'
-                : diff == 1
-                ? 'Yesterday'
-                : DateFormat('MMM d, yyyy').format(msg.timestamp);
+        final dateLabel = diff == 0
+            ? 'Today'
+            : diff == 1
+            ? 'Yesterday'
+            : DateFormat('MMM d, yyyy').format(msg.timestamp);
 
         return GestureDetector(
           key: ValueKey(msg.id),
-          onLongPress: () => _showMessageOptions(ctx, msg),
+          onLongPress: () => _showMessageOptions(context, msg),
           child: Column(
-            crossAxisAlignment:
-                msg.isSender
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
+            crossAxisAlignment: msg.isSender
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
             children: [
               if (showDivider) DateDivider(date: dateLabel),
               MessageBubble(msg: msg),
@@ -250,41 +279,40 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showMessageOptions(BuildContext ctx, ChatMessage msg) {
     showModalBottomSheet(
       context: ctx,
-      builder:
-          (_) => SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: Icon(
-                    msg.imageBase64 != null ? Icons.image : Icons.edit,
-                  ),
-                  title: Text(
-                    msg.imageBase64 != null ? 'Edit Image' : 'Edit Text',
-                  ),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    if (msg.imageBase64 != null) {
-                      _editImage(ctx, msg);
-                    } else {
-                      _editMessage(ctx, msg);
-                    }
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.delete),
-                  title: const Text('Delete'),
-                  onTap: () async {
-                    Navigator.pop(ctx);
-                    await _chatService.deleteMessage(
-                      friendId: widget.friend.id,
-                      messageId: msg.id,
-                    );
-                  },
-                ),
-              ],
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(
+                msg.imageBase64 != null ? Icons.image : Icons.edit,
+              ),
+              title: Text(
+                msg.imageBase64 != null ? 'Edit Image' : 'Edit Text',
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                if (msg.imageBase64 != null) {
+                  _editImage(ctx, msg);
+                } else {
+                  _editMessage(ctx, msg);
+                }
+              },
             ),
-          ),
+            ListTile(
+              leading: const Icon(Icons.delete),
+              title: const Text('Delete'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _chatService.deleteMessage(
+                  friendId: widget.friend.id,
+                  messageId: msg.id,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -292,21 +320,20 @@ class _ChatScreenState extends State<ChatScreen> {
     final controller = TextEditingController(text: msg.text);
     final newText = await showDialog<String>(
       context: ctx,
-      builder:
-          (_) => AlertDialog(
-            title: const Text('Edit message'),
-            content: TextField(controller: controller),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, null),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, controller.text),
-                child: const Text('Save'),
-              ),
-            ],
+      builder: (_) => AlertDialog(
+        title: const Text('Edit message'),
+        content: TextField(controller: controller),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Cancel'),
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
     );
     if (newText != null && newText.trim().isNotEmpty) {
       await _chatService.updateMessage(

@@ -1,39 +1,51 @@
+// lib/services/gemini_service.dart
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class GeminiService {
-  static const _endpoint =
-      'https://us-central1-aiplatform.googleapis.com'
-      '/v1/projects/academichub-c1068/locations/us-central1'
-      '/publishers/google/models/chat-bison-001:predict';
-  final _apiKey = 'AIzaSyBOoWYP2bDaZ4deMMb2GdJoipXtNb7zKig';
+  // 1) Your API key from Google Cloud → see steps below
+  static const _apiKey = 'AIzaSyDwWVp-zyUVLUNmrWb6aEMRvTAW_pK7KUk';
 
-  /// Send user [prompt] to Gemini and get the bot’s reply.
+  // 2) Gemini Developer REST endpoint for generateContent
+  static const _endpoint =
+      'https://generativelanguage.googleapis.com/v1beta/models/'
+      'gemini-2.5-flash:generateContent';
+
+  /// Send [prompt] to Gemini-2.5-Flash and return its reply.
   Future<String> ask(String prompt) async {
-    final url = '$_endpoint?key=$_apiKey';
+    final uri = Uri.parse('$_endpoint?key=$_apiKey');
+
+    final body = {
+      'contents': [
+        {
+          'parts': [
+            {'text': prompt}
+          ]
+        }
+      ],
+      // optional: steer randomness/length
+      'generationConfig': {
+        'temperature': 0.7,
+        'maxOutputTokens': 512,
+      },
+    };
 
     final resp = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'instances': [
-          {'content': prompt}
-        ],
-        // Optionally, you can add parameters here, e.g. temperature
-        'parameters': {
-          'temperature': 0.7,
-          'maxOutputTokens': 512,
-        },
-      }),
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
     );
+
     if (resp.statusCode != 200) {
-      throw Exception('Gemini error: ${resp.statusCode} ${resp.body}');
+      throw Exception('Gemini API error ${resp.statusCode}: ${resp.body}');
     }
-    final body = jsonDecode(resp.body) as Map<String, dynamic>;
-    final preds = body['predictions'] as List<dynamic>;
-    final first = preds.first as Map<String, dynamic>;
-    return first['content'] as String;
+
+    final decoded = jsonDecode(resp.body) as Map<String, dynamic>;
+    final candidates = decoded['candidates'] as List<dynamic>;
+    final first = candidates.first as Map<String, dynamic>;
+    final content = (first['content'] as Map<String, dynamic>)['parts']
+    as List<dynamic>;
+    return (content.first as Map<String, dynamic>)['text'] as String;
   }
 }
