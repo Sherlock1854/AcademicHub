@@ -1,6 +1,7 @@
 // lib/screens/topic_list_screen.dart
 
 import 'package:flutter/material.dart';
+import '../../bottom_nav.dart';
 import '../services/forum_service.dart';
 import '../models/forum_topic.dart';
 import 'post_list_screen.dart';
@@ -113,6 +114,7 @@ class _TopicListScreenState extends State<TopicListScreen> {
           builder: (_) => const AddTopicDialog(),
         ),
       ),
+      bottomNavigationBar: const AppNavigationBar(selectedIndex: 4), // Index 0 for Home
     );
   }
 }
