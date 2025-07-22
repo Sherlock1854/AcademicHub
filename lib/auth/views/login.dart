@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:academichub/auth/auth_service.dart';
 import 'package:academichub/auth/views/register.dart';
 import 'package:academichub/auth/views/forget_password.dart';
+import 'package:academichub/dashboard/views/dashboard_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
-
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -17,23 +17,57 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscure = true;
 
   void login() async {
-    final auth = AuthService();
+    final _auth = AuthService();
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
     try {
-      await auth.signInWithEmailPassword(
-        loginEmailCtrl.text,
-        loginPasswordCtrl.text,
+      // Await sign-in
+      await _auth.signInWithEmailPassword(
+        loginEmailCtrl.text.trim(),
+        loginPasswordCtrl.text.trim(),
       );
-      // On successful login, you would typically navigate to the home screen
-      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePageScreen()));
+
+      if (!mounted) return;
+
+      // Remove loading dialog
+      Navigator.pop(context);
+
+      // Navigate to dashboard page using MaterialPageRoute
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardPage()),
+      );
     } catch (e) {
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(title: Text(e.toString())),
-        );
-      }
+      if (!mounted) return;
+
+      // Remove loading dialog if error
+      Navigator.pop(context);
+
+      // Show error dialog
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Login Failed'),
+          content: Text(e.toString()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
     }
   }
+
 
   @override
   void dispose() {
@@ -71,7 +105,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                // Changed to use Image.asset
                 Container(
                   width: 200,
                   height: 200,
@@ -85,11 +118,10 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ],
                   ),
-                  // Use ClipOval to ensure the image is circular within the container
                   child: ClipOval(
                     child: Image.asset(
-                      'assets/images/login.png', // Your asset image path
-                      fit: BoxFit.cover, // Ensures the image covers the circular area
+                      'assets/images/login.png',
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
@@ -209,7 +241,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 50),
+                const SizedBox(height: 40),
               ],
             ),
           ),

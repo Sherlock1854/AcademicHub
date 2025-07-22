@@ -3,6 +3,7 @@ import 'package:academichub/auth/views/login.dart';
 import 'package:flutter/material.dart';
 import 'package:academichub/utilities/design.dart';
 import 'package:flutter/gestures.dart';
+import 'package:academichub/dashboard/views/dashboard_page.dart';
 
 
 class RegisterPage extends StatefulWidget { // Renamed from Register
@@ -20,30 +21,50 @@ class _RegisterPageState extends State<RegisterPage> { // Renamed state
   bool _obscure = true;
 
   void register() async {
-    final auth = AuthService(); // Renamed _auth to auth for direct use
+    final auth = AuthService();
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
 
     try {
-      // Assuming AuthService.signUpWithEmailPassword can handle first name and surname
-      // You might need to adjust AuthService if it only takes email/password/name/phone
       await auth.signUpWithEmailPassword(
-        registerEmailCtrl.text,
-        registerPasswordCtrl.text,
-        registerFirstNameCtrl.text, // Pass first name
-        registerSurnameCtrl.text,   // Pass surname
-        // If your AuthService requires phone, you'd add registerPhoneCtrl.text here
+        registerEmailCtrl.text.trim(),
+        registerPasswordCtrl.text.trim(),
+        registerFirstNameCtrl.text.trim(),
+        registerSurnameCtrl.text.trim(),
       );
-      if (mounted) {
-        Navigator.pop(context); // Go back to login page on successful registration
-      }
+
+      if (!mounted) return;
+      Navigator.pop(context); // remove loading spinner
+
+      // ✅ Navigate to dashboard directly
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardPage()),
+      );
     } catch (e) {
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(title: Text(e.toString())),
-        );
-      }
+      if (!mounted) return;
+      Navigator.pop(context); // remove loading spinner
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Registration Failed'),
+          content: Text(e.toString()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
     }
   }
+
 
   @override
   void dispose() {
@@ -239,27 +260,6 @@ class _RegisterPageState extends State<RegisterPage> { // Renamed state
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Terms & Conditions text
-                RichText(
-                  textAlign: TextAlign.center,
-                  text: TextSpan(
-                    text: 'By signing up, you agree to our ',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    children: [
-                      TextSpan(
-                        text: 'Terms & Conditions.',
-                        style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () {
-                            debugPrint('Terms & Conditions tapped');
-                            // TODO: Navigate to Terms & Conditions page
-                          },
-                      ),
-                    ],
                   ),
                 ),
 

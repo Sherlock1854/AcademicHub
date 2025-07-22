@@ -21,7 +21,7 @@ class AppNavigationBar extends StatelessWidget {
 
     switch (index) {
       case 0:
-        targetPage = const HomePageScreen();
+        targetPage = const DashboardPage();
         break;
       case 1:
         targetPage = const CoursesPageScreen();
@@ -30,13 +30,13 @@ class AppNavigationBar extends StatelessWidget {
         targetPage = const QuizzesPageScreen();
         break;
       case 3:
-        targetPage = const HomePageScreen(); // Replace with ForumPage()
+        targetPage = const DashboardPage(); // Replace with ForumPage()
         break;
       case 4:
         targetPage = const AccountSettingsScreen();
         break;
       default:
-        targetPage = const HomePageScreen();
+        targetPage = const DashboardPage();
     }
 
     Navigator.pushReplacement(

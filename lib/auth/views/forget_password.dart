@@ -34,17 +34,21 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     try {
       await AuthService().sendPasswordResetEmail(emailController.text.trim());
 
-      // Uncomment the Firebase Auth line below when ready to integrate
-      // await _auth.sendPasswordResetEmail(email: emailController.text.trim());
+      if (!mounted) return;
 
-      if (mounted) {
-        _showSnackBar('Password reset link sent to your email!', Colors.green);
-        // Navigator.of(context).pop();
-      }
+      // Show success snackbar
+      _showSnackBar('Password reset link sent to your email!', Colors.green);
+
+      // Wait a moment for the user to read the message, then go to login
+      await Future.delayed(const Duration(seconds: 2));
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
     } catch (e) {
-      if (mounted) {
-        _showSnackBar('Failed to send reset email: $e', Colors.red);
-      }
+      if (!mounted) return;
+      _showSnackBar('Failed to send reset email: $e', Colors.red);
     } finally {
       setState(() {
         _isLoading = false;

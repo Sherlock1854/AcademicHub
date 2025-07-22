@@ -4,14 +4,14 @@ import 'widget/course_card.dart';
 import '../../course/views/course_page.dart';
 import '../../course/services/course_service.dart';
 
-class HomePageScreen extends StatefulWidget {
-  const HomePageScreen({super.key});
+class DashboardPage extends StatefulWidget {
+  const DashboardPage({super.key});
 
   @override
-  State<HomePageScreen> createState() => _HomePageScreenState();
+  State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _HomePageScreenState extends State<HomePageScreen> {
+class _DashboardPageState extends State<DashboardPage> {
   late List<CourseModel> joinedCourses;
 
   @override
