@@ -1,11 +1,12 @@
 // lib/views/forum/add_post_dialog.dart
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/forum_service.dart';
 
 class AddPostDialog extends StatefulWidget {
   final String topicId;
-  const AddPostDialog({super.key, required this.topicId});
+  const AddPostDialog({Key? key, required this.topicId}) : super(key: key);
 
   @override
   State<AddPostDialog> createState() => _AddPostDialogState();
@@ -28,13 +29,18 @@ class _AddPostDialogState extends State<AddPostDialog> {
     final body  = _bodyCtrl.text.trim();
     if (title.isEmpty || body.isEmpty) return;
 
+    final user = FirebaseAuth.instance.currentUser;
+    final authorName = user?.displayName ?? 'Anonymous';
+    final photoUrl   = user?.photoURL    ?? '';
+
     setState(() => _loading = true);
     try {
       await ForumService().addPost(
-        topicId: widget.topicId,
-        author: 'CurrentUser', // replace with your auth user
-        title: title,
-        body: body,
+        topicId:     widget.topicId,
+        author:      authorName,
+        title:       title,
+        body:        body,
+        userImageUrl: photoUrl,            // ← pass the avatar URL
       );
       Navigator.of(context).pop();  // close on success
     } catch (e) {
@@ -56,6 +62,7 @@ class _AddPostDialogState extends State<AddPostDialog> {
             controller: _titleCtrl,
             decoration: const InputDecoration(labelText: 'Title'),
           ),
+          const SizedBox(height: 8),
           TextField(
             controller: _bodyCtrl,
             decoration: const InputDecoration(labelText: 'Body'),
@@ -71,7 +78,11 @@ class _AddPostDialogState extends State<AddPostDialog> {
         ElevatedButton(
           onPressed: _loading ? null : _submit,
           child: _loading
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
               : const Text('Post'),
         ),
       ],

@@ -1,9 +1,11 @@
 // lib/screens/post_list_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
 import '../models/forum_topic.dart';
-import '../services/forum_service.dart';
 import '../models/forum_post.dart';
+import '../services/forum_service.dart';
 import 'post_detail_screen.dart';
 import 'add_post_dialog.dart';
 
@@ -12,7 +14,7 @@ class PostListScreen extends StatefulWidget {
   const PostListScreen({Key? key, required this.topic}) : super(key: key);
 
   @override
-  _PostListScreenState createState() => _PostListScreenState();
+  State<PostListScreen> createState() => _PostListScreenState();
 }
 
 class _PostListScreenState extends State<PostListScreen> {
@@ -27,8 +29,15 @@ class _PostListScreenState extends State<PostListScreen> {
 
   bool _matchesFilter(ForumPost p) {
     final q = _searchQuery.toLowerCase();
-    return p.title.toLowerCase().contains(q)
-        || p.author.toLowerCase().contains(q);
+    return p.title.toLowerCase().contains(q) ||
+        p.author.toLowerCase().contains(q);
+  }
+
+  String _timeAgo(DateTime t) {
+    final diff = DateTime.now().difference(t);
+    if (diff.inDays >= 1) return '${diff.inDays}d ago';
+    if (diff.inHours >= 1) return '${diff.inHours}h ago';
+    return '${diff.inMinutes}m ago';
   }
 
   @override
@@ -38,6 +47,7 @@ class _PostListScreenState extends State<PostListScreen> {
         title: Text(widget.topic.title),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
+        elevation: 1,
       ),
       body: Column(
         children: [
@@ -73,9 +83,7 @@ class _PostListScreenState extends State<PostListScreen> {
                   return Center(child: Text('Error: ${snap.error}'));
                 }
 
-                // original list
                 final allPosts = snap.data!;
-                // apply filter if any
                 final posts = _searchQuery.isEmpty
                     ? allPosts
                     : allPosts.where(_matchesFilter).toList();
@@ -89,17 +97,107 @@ class _PostListScreenState extends State<PostListScreen> {
                   );
                 }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: posts.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (ctx, i) {
                     final p = posts[i];
-                    return ListTile(
-                      title: Text(p.title),
-                      subtitle: Text('by ${p.author}'),
-                      onTap: () => Navigator.of(ctx).push(
-                        MaterialPageRoute(
-                          builder: (_) => PostDetailScreen(post: p),
+                    // convert Firestore Timestamp to DateTime
+                    final dt = p.timestamp.toDate();
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 1,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // header: avatar + author + time
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 20,
+                                  backgroundImage: AssetImage(
+                                    p.userImageUrl.isNotEmpty
+                                        ? p.userImageUrl
+                                        : 'assets/images/fail.png',
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        p.author,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _timeAgo(dt),
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            // post title (bold) + body (regular)
+                            Text(
+                              p.title,
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              p.body,
+                              style: const TextStyle(fontSize: 15),
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            // actions: like & comment
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                      Icons.thumb_up_alt_outlined),
+                                  onPressed: () {
+                                    // TODO: handle like
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(
+                                      Icons.chat_bubble_outline),
+                                  onPressed: () {
+                                    Navigator.of(ctx).push(
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            PostDetailScreen(post: p),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -114,7 +212,8 @@ class _PostListScreenState extends State<PostListScreen> {
         child: const Icon(Icons.add_comment),
         onPressed: () => showDialog(
           context: ctx,
-          builder: (_) => AddPostDialog(topicId: widget.topic.id),
+          builder: (_) =>
+              AddPostDialog(topicId: widget.topic.id),
         ),
       ),
     );

@@ -36,7 +36,7 @@ class _TopicListScreenState extends State<TopicListScreen> {
       ),
       body: Column(
         children: [
-          // ──────────────────── Search bar ────────────────────
+          // ── Search Bar ─────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
@@ -56,7 +56,7 @@ class _TopicListScreenState extends State<TopicListScreen> {
             ),
           ),
 
-          // ──────────────────── Topic list ────────────────────
+          // ── Topic List ─────────────────────────────────────────
           Expanded(
             child: StreamBuilder<List<ForumTopic>>(
               stream: ForumService().topics(),
@@ -69,7 +69,6 @@ class _TopicListScreenState extends State<TopicListScreen> {
                 }
 
                 final allTopics = snap.data!;
-                // apply filter
                 final topics = _searchQuery.isEmpty
                     ? allTopics
                     : allTopics.where((t) =>
@@ -90,7 +89,27 @@ class _TopicListScreenState extends State<TopicListScreen> {
                   itemBuilder: (ctx, i) {
                     final t = topics[i];
                     return ListTile(
-                      leading: Icon(t.icon, color: Colors.blue),
+                      leading: ClipOval(
+                        child: t.iconUrl != null
+                            ? Image.network(
+                          t.iconUrl!,
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Image.asset(
+                            'assets/images/fail.png',
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                            : Image.asset(
+                          'assets/images/fail.png',
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
                       title: Text(t.title),
                       onTap: () {
                         Navigator.of(context).push(
@@ -114,7 +133,7 @@ class _TopicListScreenState extends State<TopicListScreen> {
           builder: (_) => const AddTopicDialog(),
         ),
       ),
-      bottomNavigationBar: const AppNavigationBar(selectedIndex: 3), // Index 0 for Home
+      bottomNavigationBar: const AppNavigationBar(selectedIndex: 3),
     );
   }
 }
