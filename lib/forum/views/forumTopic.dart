@@ -46,7 +46,7 @@
 //     Center(child: Text('Courses Page')),
 //     Center(child: Text('Quizzes Page')),
 //     ForumPage(), // Our main forum page
-//     Center(child: Text('accounts Page')),
+//     Center(child: Text('users Page')),
 //   ];
 //
 //   void _onItemTapped(int index) {
@@ -74,7 +74,7 @@
 //           BottomNavigationBarItem(icon: Icon(Icons.menu_book_outlined), label: 'Courses'),
 //           BottomNavigationBarItem(icon: Icon(Icons.lightbulb_outline), label: 'Quizzes'),
 //           BottomNavigationBarItem(icon: Icon(Icons.forum_outlined), label: 'Forum'),
-//           BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'accounts'),
+//           BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'users'),
 //         ],
 //         currentIndex: _selectedIndex,
 //         selectedItemColor: Colors.blue,

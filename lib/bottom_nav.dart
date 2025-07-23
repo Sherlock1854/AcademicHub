@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'dashboard/views/dashboard_page.dart';
-import 'accounts/views/accounts_page.dart';
+import 'users/views/user_page.dart';
 import 'course/views/course_page.dart';
 import 'quizzes/views/quizzes_page.dart';
 // import 'forum/views/forum_page.dart';
@@ -33,7 +33,7 @@ class AppNavigationBar extends StatelessWidget {
         targetPage = const DashboardPage(); // Replace with ForumPage()
         break;
       case 4:
-        targetPage = const AccountSettingsScreen();
+        targetPage = const UserSettingsPage();
         break;
       default:
         targetPage = const DashboardPage();
