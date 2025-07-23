@@ -2,28 +2,24 @@ import 'package:academichub/auth/auth_service.dart';
 import 'package:academichub/auth/views/login.dart';
 import 'package:flutter/material.dart';
 import 'package:academichub/utilities/design.dart';
-import 'package:flutter/gestures.dart';
 import 'package:academichub/dashboard/views/dashboard_page.dart';
 
-
-class RegisterPage extends StatefulWidget { // Renamed from Register
+class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
   @override
-  State<RegisterPage> createState() => _RegisterPageState(); // Renamed state
+  State<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> { // Renamed state
+class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController registerEmailCtrl = TextEditingController();
   final TextEditingController registerPasswordCtrl = TextEditingController();
-  final TextEditingController registerFirstNameCtrl = TextEditingController(); // Changed to FirstName
-  final TextEditingController registerSurnameCtrl = TextEditingController();   // Added Surname
+  final TextEditingController registerFullNameCtrl = TextEditingController(); // ✅ Full Name controller
   bool _obscure = true;
 
   void register() async {
     final auth = AuthService();
 
-    // Show loading indicator
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -34,21 +30,19 @@ class _RegisterPageState extends State<RegisterPage> { // Renamed state
       await auth.signUpWithEmailPassword(
         registerEmailCtrl.text.trim(),
         registerPasswordCtrl.text.trim(),
-        registerFirstNameCtrl.text.trim(),
-        registerSurnameCtrl.text.trim(),
+        registerFullNameCtrl.text.trim(), // ✅ Full Name passed
       );
 
       if (!mounted) return;
-      Navigator.pop(context); // remove loading spinner
+      Navigator.pop(context);
 
-      // ✅ Navigate to dashboard directly
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const DashboardPage()),
       );
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(context); // remove loading spinner
+      Navigator.pop(context);
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -65,21 +59,18 @@ class _RegisterPageState extends State<RegisterPage> { // Renamed state
     }
   }
 
-
   @override
   void dispose() {
     registerEmailCtrl.dispose();
     registerPasswordCtrl.dispose();
-    registerFirstNameCtrl.dispose();
-    registerSurnameCtrl.dispose(); // Dispose surname controller
-    // registerPhoneCtrl.dispose(); // Uncomment if you still use a phone field
+    registerFullNameCtrl.dispose(); // ✅ Dispose Full Name controller
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Changed background to white as per image
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -87,7 +78,7 @@ class _RegisterPageState extends State<RegisterPage> { // Renamed state
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 40), // Adjusted space from top
+                const SizedBox(height: 40),
                 const Text(
                   'Join us today!',
                   style: TextStyle(
@@ -97,10 +88,9 @@ class _RegisterPageState extends State<RegisterPage> { // Renamed state
                   ),
                 ),
                 const SizedBox(height: 40),
-                // Circular image from assets
                 Container(
-                  width: 200, // Adjust size as needed
-                  height: 200, // Adjust size as needed
+                  width: 200,
+                  height: 200,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     boxShadow: [
@@ -113,8 +103,8 @@ class _RegisterPageState extends State<RegisterPage> { // Renamed state
                   ),
                   child: ClipOval(
                     child: Image.asset(
-                      'assets/images/register.png', // Your asset image path
-                      fit: BoxFit.cover, // Ensures the image covers the circular area
+                      'assets/images/register.png',
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
@@ -130,45 +120,23 @@ class _RegisterPageState extends State<RegisterPage> { // Renamed state
                 ),
                 const SizedBox(height: 30),
 
-                // First Name and Surname in a Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: registerFirstNameCtrl,
-                        decoration: InputDecoration(
-                          hintText: 'First Name',
-                          filled: true,
-                          fillColor: Colors.grey[100],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                        ),
-                      ),
+                // ✅ Full Name Field
+                TextField(
+                  controller: registerFullNameCtrl,
+                  decoration: InputDecoration(
+                    hintText: 'Full Name',
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
                     ),
-                    const SizedBox(width: 16), // Space between fields
-                    Expanded(
-                      child: TextField(
-                        controller: registerSurnameCtrl,
-                        decoration: InputDecoration(
-                          hintText: 'Surname',
-                          filled: true,
-                          fillColor: Colors.grey[100],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                        ),
-                      ),
-                    ),
-                  ],
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  ),
                 ),
                 const SizedBox(height: 20),
 
-                // Email Address
+                // Email
                 TextField(
                   controller: registerEmailCtrl,
                   decoration: InputDecoration(
@@ -209,21 +177,21 @@ class _RegisterPageState extends State<RegisterPage> { // Renamed state
                 ),
                 const SizedBox(height: 30),
 
-                // Sign Up button
+                // Sign Up
                 SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
                     onPressed: register,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue, // Blue background
+                      backgroundColor: Colors.blue,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10), // Rounded corners
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      elevation: 0, // No shadow
+                      elevation: 0,
                     ),
                     child: const Text(
-                      'Sign Up', // Corrected text
+                      'Sign Up',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -234,7 +202,7 @@ class _RegisterPageState extends State<RegisterPage> { // Renamed state
                 ),
                 const SizedBox(height: 15),
 
-                // Sign In button (from the image)
+                // Sign In
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -246,15 +214,15 @@ class _RegisterPageState extends State<RegisterPage> { // Renamed state
                       );
                     },
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.blue, // Text color
-                      side: const BorderSide(color: Colors.blue), // Blue border
+                      foregroundColor: Colors.blue,
+                      side: const BorderSide(color: Colors.blue),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                       elevation: 0,
                     ),
                     child: const Text(
-                      'Sign In', // Corrected text
+                      'Sign In',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

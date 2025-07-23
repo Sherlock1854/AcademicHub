@@ -1,11 +1,11 @@
+// lib/users/views/user_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../bottom_nav.dart';
-import '../models/user_settings.dart';
-import '../services/user_services.dart';
+import 'package:academichub/bottom_nav.dart';
+import 'package:academichub/users/services/user_services.dart';
+import 'package:academichub/users/models/user_settings.dart';
 import 'widgets/user_tile.dart';
-import '../../auth/views/login.dart';
 
 class UserSettingsPage extends StatefulWidget {
   const UserSettingsPage({super.key});
@@ -15,105 +15,39 @@ class UserSettingsPage extends StatefulWidget {
 }
 
 class _UserSettingsPageState extends State<UserSettingsPage> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final UserSettingsService _settingsService = UserSettingsService();
-
-  late List<UserSettingsItem> _userSettings;
+  final _settingsService = UserSettingsService();
+  late final List<UserSettingsItem> _userSettings;
   Map<String, dynamic>? _userData;
 
   @override
   void initState() {
     super.initState();
     _userSettings = _settingsService.getUserSettingsItems(
-      context: context,
-      onLogout: _signOut,
-      onDelete: _deleteAccount,
+      context:        context,
+      onLogout:       () => _settingsService.signOut(context),
+      onDelete:       () => _settingsService.deleteAccount(context),
+      onEditComplete: _loadUserData,
     );
-    _fetchUserData();
+    _loadUserData();
   }
 
-  Future<void> _fetchUserData() async {
-    final uid = _auth.currentUser?.uid;
-    if (uid != null) {
-      final doc = await FirebaseFirestore.instance.collection('Users').doc(uid).get();
-      if (doc.exists) {
-        setState(() {
-          _userData = doc.data();
-        });
-      }
-    }
-  }
-
-  Future<void> _signOut() async {
-    try {
-      await _auth.signOut();
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginPage()),
-              (route) => false,
-        );
-      }
-    } catch (e) {
-      debugPrint('Logout failed: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to log out: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _deleteAccount() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Account'),
-        content: const Text('Are you sure you want to permanently delete your account? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    try {
-      final user = _auth.currentUser;
-      final uid = user?.uid;
-
-      if (uid != null) {
-        await FirebaseFirestore.instance.collection('Users').doc(uid).delete();
-        await user!.delete();
-
-        if (mounted) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const LoginPage()),
-                (route) => false,
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('Account deletion failed: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Account deletion failed: $e')),
-        );
-      }
-    }
+  Future<void> _loadUserData() async {
+    final data = await _settingsService.fetchUserData();
+    if (mounted) setState(() => _userData = data);
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = _auth.currentUser;
+    final user     = FirebaseAuth.instance.currentUser;
+    final fullName = _userData?['fullName'] ?? 'Loading...';
+    final email    = user?.email ?? 'email@example.com';
+    final role     = _userData?['role'] as String?;
+    final photoUrl = _userData?['photoUrl'] as String?;
+    final about    = _userData?['about']   as String?;
+
+    final formattedRole = role != null
+        ? '${role[0].toUpperCase()}${role.substring(1)}'
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -126,80 +60,104 @@ class _UserSettingsPageState extends State<UserSettingsPage> {
         child: Column(
           children: [
             const SizedBox(height: 16),
-            _buildProfileSection(user),
+
+            // ── Profile Section ───────────────────────────────────
+            Column(
+              children: [
+                CircleAvatar(
+                  key: ValueKey(photoUrl), // forces rebuild when URL changes
+                  radius: 50,
+                  backgroundColor: Colors.grey[300],
+                  backgroundImage:
+                  photoUrl != null ? NetworkImage(photoUrl) : null,
+                  child: photoUrl == null
+                      ? const Icon(
+                    Icons.person,
+                    size: 50,
+                    color: Colors.white70,
+                  )
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  fullName,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  email,
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                if (formattedRole != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    formattedRole,
+                    style: const TextStyle(
+                      color: Colors.blueGrey,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+
+                // ── About Me ────────────────────────────────────────
+                if (about != null && about.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'About Me',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600, // semi-bold
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        about,
+                        textAlign: TextAlign.left,
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+
             const SizedBox(height: 20),
-            _buildSettingsList(),
+
+            // ── Settings List ─────────────────────────────────────
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                children: _userSettings.asMap().entries.map((entry) {
+                  return UserSettingsTile(
+                    item: entry.value,
+                    showDivider:
+                    entry.key < _userSettings.length - 1,
+                  );
+                }).toList(),
+              ),
+            ),
           ],
         ),
       ),
       bottomNavigationBar: const AppNavigationBar(selectedIndex: 4),
-    );
-  }
-
-  Widget _buildProfileSection(User? user) {
-    final fullName = _userData != null
-        ? '${_userData!['firstName']} ${_userData!['surname']}'
-        : 'Loading...';
-
-    final email = user?.email ?? 'email@example.com';
-    final role = _userData?['role'];
-    final formattedRole = role != null
-        ? role.toString()[0].toUpperCase() + role.toString().substring(1)
-        : null;
-
-    // ✅ Default image fallback
-    const defaultImageUrl =
-        'https://firebasestorage.googleapis.com/v0/b/academichub-c1068.appspot.com/o/profile%2Fdefault_user.png?alt=media';
-
-
-
-    // ✅ If `photoUrl` field exists in Firestore, use it
-    final photoUrl = _userData?['photoUrl'] ?? defaultImageUrl;
-
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 50,
-          backgroundColor: Colors.grey[200],
-          backgroundImage: NetworkImage(photoUrl ?? defaultImageUrl),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          fullName,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          email,
-          style: TextStyle(color: Colors.grey[600]),
-        ),
-        if (formattedRole != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            formattedRole,
-            style: const TextStyle(
-              color: Colors.blueGrey,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildSettingsList() {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Column(
-        children: _userSettings.asMap().entries.map((entry) {
-          return UserSettingsTile(
-            item: entry.value,
-            showDivider: entry.key < _userSettings.length - 1,
-          );
-        }).toList(),
-      ),
     );
   }
 }

@@ -16,16 +16,18 @@ class AuthService {
   }
 
   /// SIGN UP
-  Future<UserCredential> signUpWithEmailPassword(String email, password, firstName, surname) async {
+  Future<UserCredential> signUpWithEmailPassword(String email, String password, String fullName) async {
     try {
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-      // Save user with default role: 'user'
+      // Save user with fullName and default role: 'user'
       await _firestore.collection("Users").doc(userCredential.user!.uid).set({
         "uid": userCredential.user!.uid,
         "email": email,
-        "firstName": firstName,
-        "surname": surname,
+        "fullName": fullName,
         "role": "user",
       });
 
