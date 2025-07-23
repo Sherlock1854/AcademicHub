@@ -1,15 +1,14 @@
-// lib/models/forum_post.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ForumPost {
   final String id;
   final String topicId;
-  final String author;
+  final String author; // This will store the user ID, not full name
   final String title;
   final String body;
   final Timestamp timestamp;
-  final String userImageUrl;  // ← new
+  final String userImageUrl;
+  final List<String> imageUrls; // New: for attached images
 
   ForumPost({
     required this.id,
@@ -19,6 +18,7 @@ class ForumPost {
     required this.body,
     required this.timestamp,
     required this.userImageUrl,
+    required this.imageUrls,
   });
 
   factory ForumPost.fromDoc(DocumentSnapshot doc) {
@@ -30,8 +30,8 @@ class ForumPost {
       title: d['title'] as String,
       body: d['body'] as String,
       timestamp: d['timestamp'] as Timestamp,
-      userImageUrl: d['userImageUrl'] as String?
-          ?? '',  // default to empty if missing
+      userImageUrl: d['userImageUrl'] as String? ?? '',
+      imageUrls: List<String>.from(d['imageUrls'] ?? []), // fallback to empty list
     );
   }
 
@@ -42,5 +42,6 @@ class ForumPost {
     'body': body,
     'timestamp': timestamp,
     'userImageUrl': userImageUrl,
+    'imageUrls': imageUrls,
   };
 }

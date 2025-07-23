@@ -63,25 +63,27 @@ class ForumService {
     }
   }
 
-  /// Add a post under a given topic. Unchanged.
+  /// Add a post under a given topic, including optional attached images.
   Future<void> addPost({
     required String topicId,
-    required String author,
+    required String author,         // stores the UID
     required String title,
     required String body,
-    required String userImageUrl,     // ← add this parameter
-  }) {
-    return _db
+    required String userImageUrl,   // avatar URL
+    List<String>? imageUrls,        // newly added param
+  }) async {
+    await _db
         .collection('topics')
         .doc(topicId)
         .collection('posts')
         .add({
-      'topicId': topicId,
-      'author': author,
-      'title': title,
-      'body': body,
-      'timestamp': FieldValue.serverTimestamp(),
-      'userImageUrl': userImageUrl,  // ← store it here
+      'topicId':      topicId,
+      'author':       author,
+      'title':        title,
+      'body':         body,
+      'timestamp':    FieldValue.serverTimestamp(),
+      'userImageUrl': userImageUrl,
+      'imageUrls':    imageUrls ?? <String>[],  // save empty list if null
     });
   }
 }
