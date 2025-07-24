@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../bottom_nav.dart';
+import 'package:academichub/bottom_nav.dart';
+import 'package:academichub/course/services/course_service.dart';
+import 'package:academichub/course/views/course_page.dart';        // ← Join-Course screen
+import 'package:academichub/course/views/course_content.dart';     // ← Content screen
 import 'widget/course_card.dart';
-import '../../course/views/course_page.dart';
-import '../../course/services/course_service.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -23,19 +24,17 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Refresh joined courses when coming back from course page
+    // Refresh joined courses when coming back
     setState(() {
       joinedCourses = CourseService().getJoinedCourses();
     });
   }
 
-  void _navigateToJoinCourse() async {
+  Future<void> _navigateToJoinCourse() async {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const CoursesPageScreen()),
     );
-
-    // After returning, refresh the joined courses
     setState(() {
       joinedCourses = CourseService().getJoinedCourses();
     });
@@ -58,15 +57,11 @@ class _DashboardPageState extends State<DashboardPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined, color: Colors.black54),
-            onPressed: () {
-              debugPrint('Notifications tapped');
-            },
+            onPressed: () => debugPrint('Notifications tapped'),
           ),
           IconButton(
             icon: const Icon(Icons.chat_bubble_outline, color: Colors.black54),
-            onPressed: () {
-              debugPrint('Chat tapped');
-            },
+            onPressed: () => debugPrint('Chat tapped'),
           ),
         ],
       ),
@@ -95,12 +90,23 @@ class _DashboardPageState extends State<DashboardPage> {
         itemCount: joinedCourses.length,
         itemBuilder: (context, index) {
           final course = joinedCourses[index];
-          return CourseCard(
-            courseTitle: course.title,
-            courseSubtitle: course.subtitle,
-            teacherInitial: course.instructor.isNotEmpty
-                ? course.instructor[0].toUpperCase()
-                : '?',
+          return GestureDetector(
+            onTap: () {
+              // Navigate into your CourseContentScreen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CourseContentScreen(),
+                ),
+              );
+            },
+            child: CourseCard(
+              courseTitle: course.title,
+              courseSubtitle: course.subtitle,
+              teacherInitial: course.instructor.isNotEmpty
+                  ? course.instructor[0].toUpperCase()
+                  : '?',
+            ),
           );
         },
       ),

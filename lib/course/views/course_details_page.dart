@@ -1,6 +1,9 @@
+// lib/users/views/course_details_page.dart
+
 import 'package:flutter/material.dart';
 import '../../bottom_nav.dart';
 import '../services/course_service.dart';
+import '../models/course.dart';
 
 class CourseDetailsPage extends StatelessWidget {
   final String title;
@@ -133,7 +136,7 @@ class CourseDetailsPage extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // Join Course Button
+              // Enroll Now Button
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -160,7 +163,7 @@ class CourseDetailsPage extends StatelessWidget {
                     elevation: 0,
                   ),
                   child: const Text(
-                    'Join Course',
+                    'Enroll Now',  // ← changed here
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 16,

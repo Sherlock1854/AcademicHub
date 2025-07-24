@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class Course extends StatelessWidget {
   final String courseTitle;
-  final String subtitle;  // <--- THIS is the description text!
+  final String subtitle;
   final String instructorName;
   final String subject;
   final String imageUrl;
