@@ -40,14 +40,19 @@ class _PostListScreenState extends State<PostListScreen> {
     return '${diff.inMinutes}m ago';
   }
 
-  /// Fetch the full name by looking up the user doc by UID.
-  Future<String> _getFullName(String uid) async {
-    if (_userNamesCache.containsKey(uid)) return _userNamesCache[uid]!;
-    final snap = await FirebaseFirestore.instance.collection('Users').doc(uid).get();
+  Future<String> _getFullName(String userId) async {
+    if (_userNamesCache.containsKey(userId)) {
+      return _userNamesCache[userId]!;
+    }
+    final snap = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(userId)
+        .get();
     final data = snap.data();
-    final fullName = '${data?['firstName'] ?? ''} ${data?['surname'] ?? ''}'.trim();
-    _userNamesCache[uid] = fullName.isEmpty ? 'Unknown' : fullName;
-    return _userNamesCache[uid]!;
+    final fullName =
+    '${data?['firstName'] ?? ''} ${data?['surname'] ?? ''}'.trim();
+    _userNamesCache[userId] = fullName.isEmpty ? 'Unknown' : fullName;
+    return _userNamesCache[userId]!;
   }
 
   @override
@@ -61,7 +66,7 @@ class _PostListScreenState extends State<PostListScreen> {
       ),
       body: Column(
         children: [
-          // ─── Search bar ─────────────────────
+          // Search bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
@@ -80,7 +85,7 @@ class _PostListScreenState extends State<PostListScreen> {
             ),
           ),
 
-          // ─── Posts list ─────────────────────
+          // List of posts
           Expanded(
             child: StreamBuilder<List<ForumPost>>(
               stream: ForumService().posts(widget.topic.id),
@@ -99,7 +104,10 @@ class _PostListScreenState extends State<PostListScreen> {
 
                 if (posts.isEmpty) {
                   return const Center(
-                    child: Text('No posts found', style: TextStyle(color: Colors.grey)),
+                    child: Text(
+                      'No posts found',
+                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                    ),
                   );
                 }
 
@@ -125,86 +133,109 @@ class _PostListScreenState extends State<PostListScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           elevation: 1,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // — Header: avatar + full name + time —
-                                Row(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 20,
-                                      backgroundImage: NetworkImage(avatarUrl),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(fullName,
-                                              style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16)),
-                                          const SizedBox(height: 2),
-                                          Text(_timeAgo(createdAt),
-                                              style: TextStyle(
-                                                  color: Colors.grey[600],
-                                                  fontSize: 12)),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
+                          // Wrapping the whole card in InkWell for navigation:
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              Navigator.of(ctx).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      PostDetailScreen(post: p),
                                 ),
-
-                                const SizedBox(height: 12),
-
-                                // — Only title, no body —
-                                Text(p.title,
-                                    style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600)),
-
-                                const SizedBox(height: 8),
-
-                                // — Image carousel if images exist —
-                                if (p.imageUrls.isNotEmpty)
-                                  AspectRatio(
-                                    aspectRatio: 16 / 9,
-                                    child: PageView.builder(
-                                      itemCount: p.imageUrls.length,
-                                      itemBuilder: (_, idx) => ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Image.network(
-                                          p.imageUrls[idx],
-                                          fit: BoxFit.cover,
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Header: avatar + name + time
+                                  Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 20,
+                                        backgroundImage:
+                                        NetworkImage(avatarUrl),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              fullName,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              _timeAgo(createdAt),
+                                              style: TextStyle(
+                                                color: Colors.grey[600],
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: 12),
+
+                                  // Title only
+                                  Text(
+                                    p.title,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
 
-                                const SizedBox(height: 12),
+                                  const SizedBox(height: 8),
 
-                                // — Actions: like & comment —
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.thumb_up_alt_outlined),
-                                      onPressed: () {},
+                                  // Image carousel, wrapped to absorb taps:
+                                  if (p.imageUrls.isNotEmpty)
+                                    GestureDetector(
+                                      onTap: () {}, // absorb
+                                      child:
+                                      _ImageCarousel(imageUrls: p.imageUrls),
                                     ),
-                                    const SizedBox(width: 8),
-                                    IconButton(
-                                      icon: const Icon(Icons.chat_bubble_outline),
-                                      onPressed: () {
-                                        Navigator.of(ctx).push(MaterialPageRoute(
-                                            builder: (_) =>
-                                                PostDetailScreen(post: p)));
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ],
+
+                                  const SizedBox(height: 12),
+
+                                  // Actions: like & comment (these keep their own handlers)
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(
+                                            Icons.thumb_up_alt_outlined),
+                                        onPressed: () {
+                                          // handle like
+                                        },
+                                      ),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(
+                                            Icons.chat_bubble_outline),
+                                        onPressed: () {
+                                          // comment icon still navigates
+                                          Navigator.of(ctx).push(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  PostDetailScreen(post: p),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );
@@ -217,14 +248,87 @@ class _PostListScreenState extends State<PostListScreen> {
           ),
         ],
       ),
-
-      // ─── FAB to add post ─────────────────
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add_comment),
         onPressed: () => showDialog(
           context: ctx,
           builder: (_) => AddPostDialog(topicId: widget.topic.id),
         ),
+      ),
+    );
+  }
+}
+
+/// A simple carousel that shows images and only overlays "current/total"
+/// when there is more than one image.
+class _ImageCarousel extends StatefulWidget {
+  final List<String> imageUrls;
+  const _ImageCarousel({required this.imageUrls});
+
+  @override
+  State<_ImageCarousel> createState() => __ImageCarouselState();
+}
+
+class __ImageCarouselState extends State<_ImageCarousel> {
+  late final PageController _controller;
+  int _current = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: Stack(
+        children: [
+          // swipeable images
+          PageView.builder(
+            controller: _controller,
+            itemCount: widget.imageUrls.length,
+            onPageChanged: (idx) => setState(() => _current = idx),
+            itemBuilder: (_, idx) => ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                widget.imageUrls[idx],
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+
+          // only show counter if more than one image
+          if (widget.imageUrls.length > 1)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding:
+                const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_current + 1}/${widget.imageUrls.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

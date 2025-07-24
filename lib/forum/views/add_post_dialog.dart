@@ -32,12 +32,19 @@ class _AddPostDialogState extends State<AddPostDialog> {
     super.dispose();
   }
 
-  /// Pick multiple images and catch any errors.
+  /// Pick multiple images and append them to [_images].
   Future<void> _pickImages() async {
     try {
       final pics = await _picker.pickMultiImage();
       if (pics != null && pics.isNotEmpty) {
-        setState(() => _images = pics);
+        setState(() {
+          for (var pic in pics) {
+            // avoid duplicates by path
+            if (!_images.any((e) => e.path == pic.path)) {
+              _images.add(pic);
+            }
+          }
+        });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -110,14 +117,12 @@ class _AddPostDialogState extends State<AddPostDialog> {
     return AlertDialog(
       title: const Text('New Post'),
       content: SizedBox(
-        // constrain height so it scrolls rather than overflows
         width: double.maxFinite,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-
             children: [
-              // ── Title & Body first ─────────────────────
+              // Title & Body
               TextField(
                 controller: _titleCtrl,
                 decoration: const InputDecoration(labelText: 'Title'),
@@ -128,17 +133,16 @@ class _AddPostDialogState extends State<AddPostDialog> {
                 decoration: const InputDecoration(labelText: 'Body'),
                 maxLines: 4,
               ),
-
               const SizedBox(height: 16),
 
-              // ── Add Images button below the textfields ─
+              // Pick Images button
               TextButton.icon(
                 onPressed: _loading ? null : _pickImages,
                 icon: const Icon(Icons.image),
                 label: const Text('Add Images'),
               ),
 
-              // ── Thumbnail previews beneath the button ──
+              // Thumbnails
               if (_images.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 SizedBox(
