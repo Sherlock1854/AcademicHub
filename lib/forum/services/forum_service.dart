@@ -19,7 +19,8 @@ class ForumService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snap) =>
-        snap.docs.map((d) => ForumTopic.fromDoc(d)).toList());
+        snap.docs.map((d) => ForumTopic.fromDoc(d)).toList()
+    );
   }
 
   /// Stream of posts under a topic
@@ -31,7 +32,8 @@ class ForumService {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snap) =>
-        snap.docs.map((d) => ForumPost.fromDoc(d)).toList());
+        snap.docs.map((d) => ForumPost.fromDoc(d)).toList()
+    );
   }
 
   /// Create a topic with optional image file.
@@ -85,5 +87,50 @@ class ForumService {
       'userImageUrl': userImageUrl,
       'imageUrls':    imageUrls ?? <String>[],  // save empty list if null
     });
+  }
+
+  /// Update an existing post's title, body, or images.
+  Future<void> updatePost({
+    required String topicId,
+    required String postId,
+    String? title,
+    String? body,
+    List<String>? imageUrls,
+  }) async {
+    final docRef = _db
+        .collection('topics')
+        .doc(topicId)
+        .collection('posts')
+        .doc(postId);
+
+    final data = <String, dynamic>{};
+    if (title != null)     data['title']     = title;
+    if (body != null)      data['body']      = body;
+    if (imageUrls != null) data['imageUrls'] = imageUrls;
+
+    if (data.isNotEmpty) {
+      await docRef.update(data);
+    }
+  }
+
+  /// Delete a post and all its comments under topics/{topicId}/posts/{postId}
+  Future<void> deletePost({
+    required String topicId,
+    required String postId,
+  }) async {
+    final postRef = _db
+        .collection('topics')
+        .doc(topicId)
+        .collection('posts')
+        .doc(postId);
+
+    // batch-delete comments then delete the post
+    final batch = _db.batch();
+    final commentsSnap = await postRef.collection('comments').get();
+    for (var doc in commentsSnap.docs) {
+      batch.delete(doc.reference);
+    }
+    batch.delete(postRef);
+    await batch.commit();
   }
 }

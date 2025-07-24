@@ -6,75 +6,70 @@ import '../models/comment.dart';
 class CommentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Stream of comments for a given post, ordered by timestamp ascending.
-  Stream<List<Comment>> commentsStream(String postId) {
-    return _firestore
+  /// Stream of comments under topics/{topicId}/posts/{postId}/comments
+  Stream<List<Comment>> commentsStream({
+    required String topicId,
+    required String postId,
+  }) {
+    final ref = _firestore
+        .collection('topics')             // ← root collection
+        .doc(topicId)
         .collection('posts')
         .doc(postId)
-        .collection('comments')
-        .orderBy('timestamp', descending: false)
+        .collection('comments');
+
+    return ref
+        .orderBy('timestamp', descending: true)
         .snapshots()
-        .map((snap) => snap.docs
-        .map((doc) => Comment.fromDocument(doc))
-        .toList());
+        .map((snap) => snap.docs.map((d) => Comment.fromDoc(d)).toList());
   }
 
-  /// Adds a new comment under a post, then increments the post's commentCount.
-  /// Errors are logged so you can see permission or network issues.
+  /// Adds a comment under topics/{topicId}/posts/{postId}/comments
+  /// and increments that post's commentCount.
   Future<void> addComment({
+    required String topicId,
     required String postId,
     required String authorId,
     required String avatarUrl,
     required String text,
   }) async {
-    final postRef    = _firestore.collection('posts').doc(postId);
+    final postRef = _firestore
+        .collection('topics')
+        .doc(topicId)
+        .collection('posts')
+        .doc(postId);
     final commentsRef = postRef.collection('comments');
 
-    // 1) Write the comment with a client timestamp
-    try {
-      final newDoc = await commentsRef.add({
-        'authorId': authorId,
-        'avatarUrl': avatarUrl,
-        'text': text,
-        'timestamp': Timestamp.now(),
-      });
-      // Optionally you can await newDoc.get() here
-    } catch (e, st) {
-      print('❌ [CommentService] Failed to add comment: $e\n$st');
-      rethrow;
-    }
+    // 1) Write the comment
+    await commentsRef.add({
+      'authorId' : authorId,
+      'avatarUrl': avatarUrl,
+      'text'     : text,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
 
-    // 2) Increment commentCount, but don't block if this fails
-    try {
-      await postRef.update({
-        'commentCount': FieldValue.increment(1),
-      });
-    } catch (e, st) {
-      print('⚠️ [CommentService] Failed to bump commentCount: $e\n$st');
-    }
+    // 2) Bump the post's commentCount
+    await postRef.update({
+      'commentCount': FieldValue.increment(1),
+    });
   }
 
   /// Deletes a comment and decrements the post's commentCount.
   Future<void> deleteComment({
+    required String topicId,
     required String postId,
     required String commentId,
   }) async {
-    final postRef    = _firestore.collection('posts').doc(postId);
+    final postRef    = _firestore
+        .collection('topics')
+        .doc(topicId)
+        .collection('posts')
+        .doc(postId);
     final commentRef = postRef.collection('comments').doc(commentId);
 
-    try {
-      await commentRef.delete();
-    } catch (e, st) {
-      print('❌ [CommentService] Failed to delete comment: $e\n$st');
-      rethrow;
-    }
-
-    try {
-      await postRef.update({
-        'commentCount': FieldValue.increment(-1),
-      });
-    } catch (e, st) {
-      print('⚠️ [CommentService] Failed to decrement commentCount: $e\n$st');
-    }
+    await commentRef.delete();
+    await postRef.update({
+      'commentCount': FieldValue.increment(-1),
+    });
   }
 }
