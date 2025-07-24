@@ -1,6 +1,7 @@
 // lib/screens/post_detail_screen.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/forum_post.dart';
 import '../models/comment.dart';
@@ -18,7 +19,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   final _commentController = TextEditingController();
   final _commentService = CommentService();
   late final PageController _pageController;
+
   int _currentPage = 0;
+  int _likeCount = 0;
+  int _commentCount = 0;
+  bool _isLiked = false;
 
   // Cache for full names
   final Map<String, String> _userNamesCache = {};
@@ -27,6 +32,22 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   void initState() {
     super.initState();
     _pageController = PageController();
+    _loadPostState();
+  }
+
+  Future<void> _loadPostState() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final postRef = FirebaseFirestore.instance.collection('posts').doc(widget.post.id);
+    final snap = await postRef.get();
+    if (!snap.exists) return;
+    final data = snap.data()!;
+    final likedBy = (data['likedBy'] as List<dynamic>?)?.cast<String>() ?? [];
+
+    setState(() {
+      _likeCount = (data['likeCount'] as int?) ?? widget.post.likeCount;
+      _commentCount = (data['commentCount'] as int?) ?? widget.post.commentCount;
+      _isLiked = user != null && likedBy.contains(user.uid);
+    });
   }
 
   @override
@@ -40,13 +61,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     if (_userNamesCache.containsKey(userId)) {
       return _userNamesCache[userId]!;
     }
-    final snap = await FirebaseFirestore.instance
-        .collection('Users')
-        .doc(userId)
-        .get();
+    final snap = await FirebaseFirestore.instance.collection('Users').doc(userId).get();
     final data = snap.data() ?? {};
-    final fullName =
-    '${data['firstName'] ?? ''} ${data['surname'] ?? ''}'.trim();
+    final fullName = '${data['firstName'] ?? ''} ${data['surname'] ?? ''}'.trim();
     _userNamesCache[userId] = fullName.isEmpty ? 'Unknown' : fullName;
     return _userNamesCache[userId]!;
   }
@@ -54,33 +71,66 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   String _timeAgo(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
-    if (diff.inDays > 0)    return '${diff.inDays} day${diff.inDays>1?'s':''} ago';
-    if (diff.inHours > 0)   return '${diff.inHours} hour${diff.inHours>1?'s':''} ago';
+    if (diff.inDays > 0) return '${diff.inDays} day${diff.inDays>1?'s':''} ago';
+    if (diff.inHours > 0) return '${diff.inHours} hour${diff.inHours>1?'s':''} ago';
     if (diff.inMinutes > 0) return '${diff.inMinutes} min${diff.inMinutes>1?'s':''} ago';
     return 'just now';
+  }
+
+  Future<void> _toggleLike() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final uid = user.uid;
+    final postRef = FirebaseFirestore.instance.collection('posts').doc(widget.post.id);
+
+    if (_isLiked) {
+      await postRef.update({
+        'likedBy': FieldValue.arrayRemove([uid]),
+        'likeCount': FieldValue.increment(-1),
+      });
+      setState(() {
+        _isLiked = false;
+        _likeCount--;
+      });
+    } else {
+      await postRef.update({
+        'likedBy': FieldValue.arrayUnion([uid]),
+        'likeCount': FieldValue.increment(1),
+      });
+      setState(() {
+        _isLiked = true;
+        _likeCount++;
+      });
+    }
   }
 
   Future<void> _submitComment() async {
     final text = _commentController.text.trim();
     if (text.isEmpty) return;
-    // TODO: pull real current user info
-    const currentUserName   = 'Current User';
-    const currentUserAvatar = 'https://via.placeholder.com/150';
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-    await _commentService.addComment(
-      postId: widget.post.id,
-      authorName: currentUserName,
-      avatarUrl: currentUserAvatar,
-      text: text,
-    );
-    _commentController.clear();
+    try {
+      await _commentService.addComment(
+        postId: widget.post.id,
+        authorId: user.uid,
+        avatarUrl: user.photoURL ?? '',
+        text: text,
+      );
+      _commentController.clear();
+      // no scrolling needed: newest comments are at the top
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to post comment')),
+      );
+    }
   }
 
   @override
-  Widget build(BuildContext ctx) {
-    final post   = widget.post;
-    final dt     = post.timestamp.toDate();
-    final images = post.imageUrls ?? [];
+  Widget build(BuildContext context) {
+    final post = widget.post;
+    final dt = post.timestamp.toDate();
+    final images = post.imageUrls;
 
     return Scaffold(
       appBar: AppBar(
@@ -95,13 +145,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           ),
         ],
       ),
-
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: ListView(
           padding: const EdgeInsets.only(bottom: 80),
           children: [
-            // — Header: avatar + resolved full name
+            // Header: avatar + author name
             FutureBuilder<String>(
               future: _getFullName(post.author),
               builder: (ctx, snap) {
@@ -120,8 +169,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 16)),
                         Text(_timeAgo(dt),
-                            style:
-                            const TextStyle(color: Colors.grey, fontSize: 12)),
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 12)),
                       ],
                     ),
                   ],
@@ -131,14 +180,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
             const SizedBox(height: 12),
 
-            // — Title
-            Text(post.title,
-                style:
-                const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            // Title
+            Text(
+              post.title,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
 
             const SizedBox(height: 16),
 
-            // — Image carousel with fallback
+            // Image carousel
             if (images.isNotEmpty)
               SizedBox(
                 height: 250,
@@ -148,17 +198,25 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       controller: _pageController,
                       itemCount: images.length,
                       onPageChanged: (i) => setState(() => _currentPage = i),
-                      itemBuilder: (ctx, i) {
-                        return ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: FadeInImage.assetNetwork(
-                            placeholder: 'assets/images/fail.png',
-                            image: images[i],
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                          ),
-                        );
-                      },
+                      itemBuilder: (c, i) => ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.network(
+                          images[i],
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          loadingBuilder: (ctx, child, progress) {
+                            if (progress == null) return child;
+                            return const Center(child: CircularProgressIndicator());
+                          },
+                          errorBuilder: (ctx, err, stack) {
+                            return Image.asset(
+                              'assets/images/fail.png',
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                            );
+                          },
+                        ),
+                      ),
                     ),
                     if (images.length > 1)
                       Positioned(
@@ -168,9 +226,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(12)),
                           child: Text(
                             '${_currentPage + 1}/${images.length}',
                             style: const TextStyle(
@@ -181,53 +238,55 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   ],
                 ),
               ),
-
             if (images.isNotEmpty) const SizedBox(height: 16),
 
-            // — Body
-            Text(post.body, style: const TextStyle(fontSize: 16, height: 1.4)),
-
-            const SizedBox(height: 24),
-
-            // — Engagement row (rounded buttons)
-            StreamBuilder<List<Comment>>(
-              stream: _commentService.commentsStream(post.id),
-              builder: (ctx, snap) {
-                final comments = snap.data ?? [];
-                return Row(
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () {/* TODO: like */},
-                      icon: const Icon(Icons.thumb_up_alt_outlined),
-                      label: const Text('0'), // placeholder like count
-                      style: OutlinedButton.styleFrom(
-                        shape: const StadiumBorder(),
-                        side: const BorderSide(color: Colors.grey),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton.icon(
-                      onPressed: () {/* TODO: scroll to comments */},
-                      icon: const Icon(Icons.comment_outlined),
-                      label: Text('${comments.length}'),
-                      style: OutlinedButton.styleFrom(
-                        shape: const StadiumBorder(),
-                        side: const BorderSide(color: Colors.grey),
-                      ),
-                    ),
-                  ],
-                );
-              },
+            // Body
+            Text(
+              post.body,
+              style: const TextStyle(fontSize: 16, height: 1.4),
             ),
 
             const SizedBox(height: 24),
 
-            // — Comments header
-            const Text('Comments',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            // Engagement row: like + comment counts
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _toggleLike,
+                  icon: Icon(
+                    _isLiked
+                        ? Icons.thumb_up
+                        : Icons.thumb_up_alt_outlined,
+                  ),
+                  label: Text('$_likeCount'),
+                  style: OutlinedButton.styleFrom(
+                    shape: const StadiumBorder(),
+                    side: const BorderSide(color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: () {}, // no scroll needed
+                  icon: const Icon(Icons.comment_outlined),
+                  label: Text('$_commentCount'),
+                  style: OutlinedButton.styleFrom(
+                    shape: const StadiumBorder(),
+                    side: const BorderSide(color: Colors.grey),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Comments section header
+            const Text(
+              'Comments',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 16),
 
-            // — Comments list
+            // Comments list (newest first)
             StreamBuilder<List<Comment>>(
               stream: _commentService.commentsStream(post.id),
               builder: (ctx, snap) {
@@ -235,12 +294,22 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final comments = snap.data!;
+                // keep comment count in sync
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_commentCount != comments.length) {
+                    setState(() => _commentCount = comments.length);
+                  }
+                });
                 if (comments.isEmpty) {
-                  return const Text('Be the first to comment.',
-                      style: TextStyle(color: Colors.grey));
+                  return const Text(
+                    'Be the first to comment.',
+                    style: TextStyle(color: Colors.grey),
+                  );
                 }
+                // newest-first: reverse the list
+                final newestFirst = comments.reversed.toList();
                 return Column(
-                  children: comments.map(_buildComment).toList(),
+                  children: newestFirst.map(_buildComment).toList(),
                 );
               },
             ),
@@ -248,7 +317,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         ),
       ),
 
-      // — Add comment input
+      // Add comment input
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -288,29 +357,32 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundImage: NetworkImage(c.avatarUrl),
-          ),
+          CircleAvatar(radius: 18, backgroundImage: NetworkImage(c.avatarUrl)),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            child: FutureBuilder<String>(
+              future: _getFullName(c.authorId),
+              builder: (ctx, snap) {
+                final name = snap.data ?? 'Loading…';
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                        child: Text(c.authorName,
-                            style:
-                            const TextStyle(fontWeight: FontWeight.bold))),
-                    Text(_timeAgo(c.timestamp),
-                        style: const TextStyle(
-                            color: Colors.grey, fontSize: 12)),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(name,
+                              style: const TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                        Text(_timeAgo(c.timestamp),
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 12)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(c.text),
                   ],
-                ),
-                const SizedBox(height: 4),
-                Text(c.text),
-              ],
+                );
+              },
             ),
           ),
         ],

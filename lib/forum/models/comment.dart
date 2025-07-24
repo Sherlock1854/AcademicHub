@@ -4,38 +4,41 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Comment {
   final String id;
-  final String authorName;
+  final String authorId;
   final String avatarUrl;
   final String text;
   final DateTime timestamp;
 
   Comment({
     required this.id,
-    required this.authorName,
+    required this.authorId,
     required this.avatarUrl,
     required this.text,
     required this.timestamp,
   });
 
-  /// Creates a Comment from a Firestore document snapshot
+  /// Creates a Comment from a Firestore document snapshot,
+  /// falling back to now() if the timestamp field is still null.
   factory Comment.fromDocument(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final ts = data['timestamp'] as Timestamp?;
     return Comment(
       id: doc.id,
-      authorName: data['authorName'] as String? ?? '',
+      authorId: data['authorId'] as String? ?? '',
       avatarUrl: data['avatarUrl'] as String? ?? '',
       text: data['text'] as String? ?? '',
-      timestamp: (data['timestamp'] as Timestamp).toDate(),
+      timestamp: ts?.toDate() ?? DateTime.now(),
     );
   }
 
   /// Converts this Comment to a map, for saving to Firestore
   Map<String, dynamic> toMap() {
     return {
-      'authorName': authorName,
+      'authorId': authorId,
       'avatarUrl': avatarUrl,
       'text': text,
-      'timestamp': Timestamp.fromDate(timestamp),
+      // Use a client‐side timestamp to avoid null on reads
+      'timestamp': Timestamp.now(),
     };
   }
 }
