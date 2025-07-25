@@ -9,10 +9,8 @@ class Friend {
   final bool lastIsImage;
   final DateTime? lastTimestamp;
   final bool lastIsSender;
-  final String avatarBase64;
+  final String avatarUrl;         // ← now a URL
   final bool hasUnreadMessages;
-
-  /// NEW:
   final bool pinned;
 
   Friend({
@@ -22,9 +20,9 @@ class Friend {
     required this.lastIsImage,
     required this.lastTimestamp,
     required this.lastIsSender,
-    required this.avatarBase64,
+    required this.avatarUrl,
     this.hasUnreadMessages = false,
-    this.pinned = false,           // ← default
+    this.pinned = false,
   });
 
   factory Friend.fromMap(String id, Map<String, dynamic> data) {
@@ -35,9 +33,9 @@ class Friend {
       lastIsImage: data['lastIsImage'] as bool? ?? false,
       lastTimestamp: (data['lastTimestamp'] as Timestamp?)?.toDate(),
       lastIsSender: data['lastIsSender'] as bool? ?? false,
-      avatarBase64: data['avatarBase64'] as String? ?? '',
+      avatarUrl: data['avatarUrl'] as String? ?? '',   // ← read URL
       hasUnreadMessages: data['hasUnreadMessages'] as bool? ?? false,
-      pinned: data['pinned'] as bool? ?? false,  // ← read pinned
+      pinned: data['pinned'] as bool? ?? false,
     );
   }
 
@@ -49,8 +47,8 @@ class Friend {
         ? Timestamp.fromDate(lastTimestamp!)
         : FieldValue.serverTimestamp(),
     'lastIsSender': lastIsSender,
-    'avatarBase64': avatarBase64,
+    'avatarUrl': avatarUrl,                        // ← write URL
     'hasUnreadMessages': hasUnreadMessages,
-    'pinned': pinned,                          // ← write pinned
+    'pinned': pinned,
   };
 }

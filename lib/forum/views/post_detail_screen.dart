@@ -353,6 +353,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final isAuthor  = c.authorId == _myUid;
     final canDelete = isAuthor || _isAdmin || (widget.post.author == _myUid);
     final canEdit   = isAuthor;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
@@ -361,33 +362,37 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           CircleAvatar(radius: 18, backgroundImage: NetworkImage(c.avatarUrl)),
           const SizedBox(width: 12),
           Expanded(
-            child: FutureBuilder<String>(
-              future: _getFullName(c.authorId),
-              builder: (ctx, snap) {
-                final name = snap.data ?? 'Loading…';
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      Expanded(child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold))),
-                      Text(_timeAgo(c.timestamp), style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                      if (canEdit || canDelete)
-                        PopupMenuButton<String>(
-                          onSelected: (choice) {
-                            if (choice == 'edit')   _showEditCommentDialog(c);
-                            if (choice == 'delete') _confirmDeleteComment(c.id);
-                          },
-                          itemBuilder: (_) => [
-                            if (canEdit)   const PopupMenuItem(value: 'edit',   child: Text('Edit')),
-                            if (canDelete) const PopupMenuItem(value: 'delete', child: Text('Delete')),
-                          ],
-                        ),
-                    ]),
-                    const SizedBox(height: 4),
-                    Text(c.text),
-                  ],
-                );
-              },
+            child: Builder( // Use a safe context here
+              builder: (safeCtx) => FutureBuilder<String>(
+                future: _getFullName(c.authorId),
+                builder: (ctx, snap) {
+                  final name = snap.data ?? 'Loading…';
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold))),
+                          Text(_timeAgo(c.timestamp), style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          if (canEdit || canDelete)
+                            PopupMenuButton<String>(
+                              onSelected: (choice) {
+                                if (choice == 'edit')   _showEditCommentDialog(c);
+                                if (choice == 'delete') _confirmDeleteComment(c.id);
+                              },
+                              itemBuilder: (_) => [
+                                if (canEdit)   const PopupMenuItem(value: 'edit',   child: Text('Edit')),
+                                if (canDelete) const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                              ],
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(c.text),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ],

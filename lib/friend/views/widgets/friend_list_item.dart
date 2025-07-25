@@ -1,6 +1,6 @@
 // lib/screens/widgets/friend_list_item.dart
 
-import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/friend_service.dart';
@@ -32,11 +32,25 @@ class FriendListItem extends StatelessWidget {
     final subtitle = friend.lastIsSender ? 'You: $raw' : raw;
     final time = _formatTimestamp(friend.lastTimestamp);
 
-    final avatar = friend.avatarBase64.isNotEmpty
+    // Avatar: try network URL → fallback asset → fallback icon
+    final avatar = friend.avatarUrl.isNotEmpty
         ? CircleAvatar(
       radius: 24,
-      backgroundImage:
-      MemoryImage(base64Decode(friend.avatarBase64)),
+      backgroundColor: Colors.grey[200],
+      child: ClipOval(
+        child: Image.network(
+          friend.avatarUrl,
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Image.asset(
+            'assets/images/fail.png',
+            width: 48,
+            height: 48,
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
     )
         : const CircleAvatar(
       radius: 24,
@@ -91,8 +105,7 @@ class FriendListItem extends StatelessWidget {
         onTap: () async {
           await svc.markRead(friend.id);
           Navigator.of(context).push(
-            MaterialPageRoute(
-                builder: (_) => ChatScreen(friend: friend)),
+            MaterialPageRoute(builder: (_) => ChatScreen(friend: friend)),
           );
         },
       ),
@@ -104,8 +117,7 @@ class FriendListItem extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-        BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) {
         return SafeArea(

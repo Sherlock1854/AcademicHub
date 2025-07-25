@@ -1,91 +1,74 @@
-import 'package:firebase_core/firebase_core.dart';
+// lib/utilities/notification_setup.dart
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import '../firebase_options.dart';
-import '../main.dart' show navigatorKey;
-import 'package:flutter/foundation.dart';  // for debugPrint
 
-
-/// Background message handler
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  _showLocal(message);
-}
-
-final _localNotif = FlutterLocalNotificationsPlugin();
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+FlutterLocalNotificationsPlugin();
 
 Future<void> initNotifications() async {
-  // 1) Initialize Firebase
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await _requestPermission();
+  await _saveFcmToken();
+  await _setupForegroundNotification();
+}
 
-  // 2) Init local notifications
-  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const iosSettings = DarwinInitializationSettings();
-  await _localNotif.initialize(
-    const InitializationSettings(android: androidSettings, iOS: iosSettings),
-    onDidReceiveNotificationResponse: (details) {
-      final payload = details.payload;
-
-      debugPrint('Notification tapped! payload=$payload');
-
-      if (payload == 'friend_request') {
-        navigatorKey.currentState?.pushNamed('/friend_requests');
-      } else if (payload != null) {
-        navigatorKey.currentState
-            ?.pushNamed('/chat', arguments: payload);
-      }
-      // Navigate based on payload (chatId or friend_request)
-    },
+Future<void> _requestPermission() async {
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+  NotificationSettings settings = await messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
   );
+  print('🔔 Notification permission status: ${settings.authorizationStatus}');
+}
 
-  // 3) Register background handler
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+Future<void> _saveFcmToken() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
 
-  // 4) Request permissions (iOS)
-  await FirebaseMessaging.instance.requestPermission();
-
-  // 5) Get & save the token
   final token = await FirebaseMessaging.instance.getToken();
   if (token != null) {
-    // e.g. save it under users/{uid}/fcmToken in Firestore
-    // await FirebaseFirestore.instance.doc('users/$uid').update({'fcmToken': token});
+    await FirebaseFirestore.instance.collection('Users').doc(user.uid).set(
+      {'fcmToken': token},
+      SetOptions(merge: true),
+    );
   }
 
-  // 6) Foreground message handler
-  FirebaseMessaging.onMessage.listen(_showLocal);
-
-  // 7) When user taps a notification
-  FirebaseMessaging.onMessageOpenedApp.listen((msg) {
-    final payload = msg.data['chatId'] ?? msg.data['type'];
-    debugPrint('Notification opened! payload=$payload');
-    if (payload == 'friend_request') {
-      navigatorKey.currentState?.pushNamed('/friend_requests');
-    } else if (payload != null) {
-      navigatorKey.currentState?.pushNamed('/chat', arguments: payload);
-    }
+  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+    await FirebaseFirestore.instance.collection('Users').doc(user.uid).set(
+      {'fcmToken': newToken},
+      SetOptions(merge: true),
+    );
   });
 }
 
-/// Helper to display a local notification
-Future<void> _showLocal(RemoteMessage msg) async {
-  final notification = msg.notification;
-  if (notification == null) return;
+Future<void> _setupForegroundNotification() async {
+  const AndroidInitializationSettings androidInit =
+  AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initSettings =
+  InitializationSettings(android: androidInit);
 
-  const androidDetails = AndroidNotificationDetails(
-    'default_channel', 'Default',
-    channelDescription: 'General notifications',
-    importance: Importance.max,
-    priority: Priority.high,
-  );
-  const iosDetails = DarwinNotificationDetails();
-  final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+  await flutterLocalNotificationsPlugin.initialize(initSettings);
 
-  await _localNotif.show(
-    msg.hashCode,
-    notification.title,
-    notification.body,
-    details,
-    payload: msg.data['chatId'] ?? msg.data['type'],
-  );
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    final notification = message.notification;
+    final android = notification?.android;
+    if (notification != null && android != null) {
+      flutterLocalNotificationsPlugin.show(
+        notification.hashCode,
+        notification.title,
+        notification.body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'default_channel',
+            'Default Channel',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+        ),
+      );
+    }
+  });
 }

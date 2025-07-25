@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext ctx) {
     return MaterialApp(
       navigatorKey: navigatorKey,
-      title: 'AcademyHub',
+      title: 'AcademicHub',
       theme: ThemeData(useMaterial3: true),
       home: const AuthGate(),
     );

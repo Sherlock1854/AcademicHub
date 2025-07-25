@@ -1,1 +1,35 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"academichub-c1068","appId":"1:939051170781:android:aaa8171262908378055434","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"academichub-c1068","configurations":{"android":"1:939051170781:android:aaa8171262908378055434","ios":"1:939051170781:ios:feb9a6b55f58eae8055434"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "academichub-c1068",
+          "appId": "1:939051170781:android:aaa8171262908378055434",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "academichub-c1068",
+          "configurations": {
+            "android": "1:939051170781:android:aaa8171262908378055434",
+            "ios": "1:939051170781:ios:feb9a6b55f58eae8055434"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}

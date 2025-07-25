@@ -1,18 +1,16 @@
-// lib/screens/widgets/message_input_field.dart
-
 import 'package:flutter/material.dart';
 
 class MessageInputField extends StatefulWidget {
   final void Function(String) onSend;
   final VoidCallback onImagePressed;
   final VoidCallback onCameraPressed;
-  final bool isBot;   // ← new
+  final bool isBot;
 
   const MessageInputField({
     required this.onSend,
     required this.onImagePressed,
     required this.onCameraPressed,
-    this.isBot = false,   // default false
+    this.isBot = false,
     super.key,
   });
 
@@ -49,7 +47,6 @@ class _MessageInputFieldState extends State<MessageInputField> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine how many icons are visible to adjust spacing if needed
     final showMediaIcons = !widget.isBot;
 
     return Container(
@@ -57,8 +54,9 @@ class _MessageInputFieldState extends State<MessageInputField> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: SafeArea(
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // 1) multi‐line text field fills remaining space
+            // 1) Growing text field
             Expanded(
               child: TextField(
                 controller: _controller,
@@ -80,28 +78,41 @@ class _MessageInputFieldState extends State<MessageInputField> {
               ),
             ),
 
-            // 2) optional gallery icon
+            // 2) Media icons
             if (showMediaIcons) ...[
               const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.image_outlined),
-                onPressed: widget.onImagePressed,
+              SizedBox(
+                height: 48,
+                child: Center(
+                  child: IconButton(
+                    icon: const Icon(Icons.image_outlined),
+                    onPressed: widget.onImagePressed,
+                  ),
+                ),
               ),
-
-              // 3) optional camera icon
-              IconButton(
-                icon: const Icon(Icons.camera_alt_outlined),
-                onPressed: widget.onCameraPressed,
+              SizedBox(
+                height: 48,
+                child: Center(
+                  child: IconButton(
+                    icon: const Icon(Icons.camera_alt_outlined),
+                    onPressed: widget.onCameraPressed,
+                  ),
+                ),
               ),
             ],
 
-            // 4) send icon
-            IconButton(
-              icon: Icon(
-                Icons.send,
-                color: _canSend ? Colors.blue : Colors.grey,
+            // 3) Send button
+            SizedBox(
+              height: 48,
+              child: Center(
+                child: IconButton(
+                  icon: Icon(
+                    Icons.send,
+                    color: _canSend ? Colors.blue : Colors.grey,
+                  ),
+                  onPressed: _canSend ? _send : null,
+                ),
               ),
-              onPressed: _canSend ? _send : null,
             ),
           ],
         ),
