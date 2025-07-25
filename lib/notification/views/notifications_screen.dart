@@ -1,9 +1,7 @@
-// lib/notifications/views/notifications_screen.dart
-
 import 'package:flutter/material.dart';
 import '../models/notification_item.dart';
 import '../services/notification_service.dart';
-import 'notification_item_widget.dart';
+import 'widget/notification_item_widget.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -19,8 +17,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title:
-        const Text('Notifications', style: TextStyle(color: Colors.black)),
+        title: const Text('Notifications', style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
@@ -34,8 +31,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           final items = snap.data!;
           if (items.isEmpty) {
             return const Center(
-              child: Text('No notifications',
-                  style: TextStyle(color: Colors.grey)),
+              child: Text('No notifications', style: TextStyle(color: Colors.grey)),
             );
           }
           return ListView.builder(

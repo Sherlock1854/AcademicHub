@@ -1,6 +1,5 @@
-// lib/screens/post_list_screen.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/forum_topic.dart';
@@ -8,6 +7,8 @@ import '../models/forum_post.dart';
 import '../services/forum_service.dart';
 import 'post_detail_screen.dart';
 import 'add_post_dialog.dart';
+
+enum PostSortOption { newest, mostCommented, mostLiked }
 
 class PostListScreen extends StatefulWidget {
   final ForumTopic topic;
@@ -21,6 +22,7 @@ class _PostListScreenState extends State<PostListScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   final Map<String, String> _userNamesCache = {};
+  PostSortOption _sortOption = PostSortOption.newest;
 
   @override
   void dispose() {
@@ -41,18 +43,26 @@ class _PostListScreenState extends State<PostListScreen> {
   }
 
   Future<String> _getFullName(String userId) async {
-    if (_userNamesCache.containsKey(userId)) {
-      return _userNamesCache[userId]!;
-    }
-    final snap = await FirebaseFirestore.instance
-        .collection('Users')
-        .doc(userId)
-        .get();
+    if (_userNamesCache.containsKey(userId)) return _userNamesCache[userId]!;
+    final snap = await FirebaseFirestore.instance.collection('Users').doc(userId).get();
     final data = snap.data();
-    final fullName =
-    '${data?['firstName'] ?? ''} ${data?['surname'] ?? ''}'.trim();
+    final fullName = '${data?['firstName'] ?? ''} ${data?['surname'] ?? ''}'.trim();
     _userNamesCache[userId] = fullName.isEmpty ? 'Unknown' : fullName;
     return _userNamesCache[userId]!;
+  }
+
+  void _sortPosts(List<ForumPost> posts) {
+    switch (_sortOption) {
+      case PostSortOption.newest:
+        posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        break;
+      case PostSortOption.mostCommented:
+        posts.sort((a, b) => (b.commentCount ?? 0).compareTo(a.commentCount ?? 0));
+        break;
+      case PostSortOption.mostLiked:
+        posts.sort((a, b) => (b.likeCount ?? 0).compareTo(a.likeCount ?? 0));
+        break;
+    }
   }
 
   @override
@@ -63,12 +73,37 @@ class _PostListScreenState extends State<PostListScreen> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
+        actions: [
+          PopupMenuButton<PostSortOption>(
+            icon: Row(
+              children: const [
+                Icon(Icons.sort, color: Colors.black),
+                SizedBox(width: 4),
+                Text('Sort by', style: TextStyle(color: Colors.black)),
+              ],
+            ),
+            onSelected: (val) => setState(() => _sortOption = val),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: PostSortOption.mostCommented,
+                child: const Text('Top comments'),
+              ),
+              PopupMenuItem(
+                value: PostSortOption.newest,
+                child: const Text('Newest first'),
+              ),
+              PopupMenuItem(
+                value: PostSortOption.mostLiked,
+                child: const Text('Most liked'),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // Search bar
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -84,8 +119,6 @@ class _PostListScreenState extends State<PostListScreen> {
               onChanged: (val) => setState(() => _searchQuery = val.trim()),
             ),
           ),
-
-          // List of posts
           Expanded(
             child: StreamBuilder<List<ForumPost>>(
               stream: ForumService().posts(widget.topic.id),
@@ -99,15 +132,14 @@ class _PostListScreenState extends State<PostListScreen> {
 
                 final allPosts = snap.data!;
                 final posts = _searchQuery.isEmpty
-                    ? allPosts
+                    ? [...allPosts]
                     : allPosts.where(_matchesFilter).toList();
+
+                _sortPosts(posts);
 
                 if (posts.isEmpty) {
                   return const Center(
-                    child: Text(
-                      'No posts found',
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
-                    ),
+                    child: Text('No posts found', style: TextStyle(color: Colors.grey, fontSize: 16)),
                   );
                 }
 
@@ -129,112 +161,118 @@ class _PostListScreenState extends State<PostListScreen> {
 
                         return Card(
                           margin: const EdgeInsets.symmetric(horizontal: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 1,
-                          // Wrapping the whole card in InkWell for navigation:
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: () {
-                              Navigator.of(ctx).push(
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      PostDetailScreen(post: p),
-                                ),
-                              );
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Header: avatar + name + time
-                                  Row(
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 20,
-                                        backgroundImage:
-                                        NetworkImage(avatarUrl),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => PostDetailScreen(post: p)));
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        CircleAvatar(radius: 20, backgroundImage: NetworkImage(avatarUrl)),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                              const SizedBox(height: 2),
+                                              Text(_timeAgo(createdAt), style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(p.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                                    const SizedBox(height: 8),
+                                    if (p.imageUrls.isNotEmpty)
+                                      GestureDetector(
+                                        onTap: () {},
+                                        child: _ImageCarousel(imageUrls: p.imageUrls),
                                       ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                    const SizedBox(height: 12),
+                                    StreamBuilder<DocumentSnapshot>(
+                                      stream: FirebaseFirestore.instance
+                                          .collection('topics')
+                                          .doc(widget.topic.id)
+                                          .collection('posts')
+                                          .doc(p.id)
+                                          .snapshots(),
+                                      builder: (ctx, snap) {
+                                        if (!snap.hasData) return const SizedBox();
+                                        final data = snap.data!.data() as Map<String, dynamic>;
+                                        final likeCount = (data['likeCount'] ?? 0) as int;
+                                        final commentCount = (data['commentCount'] ?? 0) as int;
+                                        final likedBy = List<String>.from(data['likedBy'] ?? <String>[]);
+                                        final uid = FirebaseAuth.instance.currentUser?.uid;
+                                        final isLiked = uid != null && likedBy.contains(uid);
+
+                                        return Row(
+                                          mainAxisAlignment: MainAxisAlignment.end,
                                           children: [
-                                            Text(
-                                              fullName,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
+                                            OutlinedButton.icon(
+                                              onPressed: () async {
+                                                if (uid == null) return;
+                                                final ref = FirebaseFirestore.instance
+                                                    .collection('topics')
+                                                    .doc(widget.topic.id)
+                                                    .collection('posts')
+                                                    .doc(p.id);
+                                                await FirebaseFirestore.instance.runTransaction((transaction) async {
+                                                  final fresh = await transaction.get(ref);
+                                                  final data = fresh.data() as Map<String, dynamic>;
+                                                  final list = List<String>.from(data['likedBy'] ?? []);
+                                                  var count = (data['likeCount'] ?? 0) as int;
+
+                                                  if (list.contains(uid)) {
+                                                    list.remove(uid);
+                                                    count--;
+                                                  } else {
+                                                    list.add(uid);
+                                                    count++;
+                                                  }
+                                                  transaction.update(ref, {'likedBy': list, 'likeCount': count});
+                                                });
+                                              },
+                                              icon: Icon(isLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined),
+                                              label: Text('$likeCount'),
+                                              style: OutlinedButton.styleFrom(
+                                                shape: const StadiumBorder(),
+                                                side: const BorderSide(color: Colors.grey),
                                               ),
                                             ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              _timeAgo(createdAt),
-                                              style: TextStyle(
-                                                color: Colors.grey[600],
-                                                fontSize: 12,
+                                            const SizedBox(width: 8),
+                                            OutlinedButton.icon(
+                                              onPressed: () {
+                                                Navigator.of(ctx).push(MaterialPageRoute(
+                                                  builder: (_) => PostDetailScreen(post: p),
+                                                ));
+                                              },
+                                              icon: const Icon(Icons.comment_outlined),
+                                              label: Text('$commentCount'),
+                                              style: OutlinedButton.styleFrom(
+                                                shape: const StadiumBorder(),
+                                                side: const BorderSide(color: Colors.grey),
                                               ),
                                             ),
                                           ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-
-                                  const SizedBox(height: 12),
-
-                                  // Title only
-                                  Text(
-                                    p.title,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
+                                        );
+                                      },
                                     ),
-                                  ),
-
-                                  const SizedBox(height: 8),
-
-                                  // Image carousel, wrapped to absorb taps:
-                                  if (p.imageUrls.isNotEmpty)
-                                    GestureDetector(
-                                      onTap: () {}, // absorb
-                                      child:
-                                      _ImageCarousel(imageUrls: p.imageUrls),
-                                    ),
-
-                                  const SizedBox(height: 12),
-
-                                  // Actions: like & comment (these keep their own handlers)
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(
-                                            Icons.thumb_up_alt_outlined),
-                                        onPressed: () {
-                                          // handle like
-                                        },
-                                      ),
-                                      const SizedBox(width: 8),
-                                      IconButton(
-                                        icon: const Icon(
-                                            Icons.chat_bubble_outline),
-                                        onPressed: () {
-                                          // comment icon still navigates
-                                          Navigator.of(ctx).push(
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  PostDetailScreen(post: p),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -259,8 +297,6 @@ class _PostListScreenState extends State<PostListScreen> {
   }
 }
 
-/// A simple carousel that shows images and only overlays "current/total"
-/// when there is more than one image.
 class _ImageCarousel extends StatefulWidget {
   final List<String> imageUrls;
   const _ImageCarousel({required this.imageUrls});
@@ -291,7 +327,6 @@ class __ImageCarouselState extends State<_ImageCarousel> {
       aspectRatio: 16 / 9,
       child: Stack(
         children: [
-          // swipeable images
           PageView.builder(
             controller: _controller,
             itemCount: widget.imageUrls.length,
@@ -306,25 +341,19 @@ class __ImageCarouselState extends State<_ImageCarousel> {
               ),
             ),
           ),
-
-          // only show counter if more than one image
           if (widget.imageUrls.length > 1)
             Positioned(
               top: 8,
               right: 8,
               child: Container(
-                padding:
-                const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+                padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
                 decoration: BoxDecoration(
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '${_current + 1}/${widget.imageUrls.length}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
                 ),
               ),
             ),
