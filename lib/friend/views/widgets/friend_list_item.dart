@@ -1,12 +1,11 @@
 // lib/screens/widgets/friend_list_item.dart
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/friend_service.dart';
 import '../../models/friend.dart';
 import '../../../chat/views/chat_screen.dart';
-import '../../../chat/services/chat_service.dart';  // for deletion
+import '../../../chat/services/chat_service.dart';
 
 class FriendListItem extends StatelessWidget {
   final Friend friend;
@@ -32,82 +31,83 @@ class FriendListItem extends StatelessWidget {
     final subtitle = friend.lastIsSender ? 'You: $raw' : raw;
     final time = _formatTimestamp(friend.lastTimestamp);
 
-    // Avatar: try network URL → fallback asset → fallback icon
-    final avatar = friend.avatarUrl.isNotEmpty
-        ? CircleAvatar(
+    // 1) Build avatar with FadeInImage + asset fallback
+    final avatar = CircleAvatar(
       radius: 24,
       backgroundColor: Colors.grey[200],
       child: ClipOval(
-        child: Image.network(
-          friend.avatarUrl,
+        child: FadeInImage.assetNetwork(
+          placeholder: 'assets/images/fail.png',
+          image: friend.avatarUrl,
           width: 48,
           height: 48,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Image.asset(
-            'assets/images/fail.png',
-            width: 48,
-            height: 48,
-            fit: BoxFit.cover,
-          ),
+          imageErrorBuilder: (context, error, stackTrace) {
+            return Image.asset(
+              'assets/images/fail.png',
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+            );
+          },
         ),
       ),
-    )
-        : const CircleAvatar(
-      radius: 24,
-      child: Icon(Icons.person),
     );
 
     return GestureDetector(
       onLongPress: () => _showOptions(context, svc, chatSvc),
-      child: ListTile(
-        contentPadding:
-        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: avatar,
-        title: Text(
-          friend.name,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+      child: Container(
+        color: Colors.grey[50], // 2) white background for each item
+        child: ListTile(
+          contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: avatar,
+          title: Text(
+            friend.name,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(color: Colors.grey),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (time.isNotEmpty)
-              Text(
-                time,
-                style: const TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-            const SizedBox(height: 4),
-            if (friend.hasUnreadMessages)
-              Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: Colors.blue,
-                  shape: BoxShape.circle,
+          subtitle: Text(
+            subtitle,
+            style: const TextStyle(color: Colors.grey),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (time.isNotEmpty)
+                Text(
+                  time,
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
-              ),
-            if (friend.pinned)
-              const Padding(
-                padding: EdgeInsets.only(top: 4),
-                child: Icon(Icons.push_pin, size: 16, color: Colors.grey),
-              ),
-          ],
+              const SizedBox(height: 4),
+              if (friend.hasUnreadMessages)
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: Colors.blue,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              if (friend.pinned)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Icon(Icons.push_pin, size: 16, color: Colors.grey),
+                ),
+            ],
+          ),
+          onTap: () async {
+            await svc.markRead(friend.id);
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => ChatScreen(friend: friend)),
+            );
+          },
         ),
-        onTap: () async {
-          await svc.markRead(friend.id);
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => ChatScreen(friend: friend)),
-          );
-        },
       ),
     );
   }

@@ -1,3 +1,5 @@
+// lib/screens/friend_requests_screen.dart
+
 import 'package:flutter/material.dart';
 import '../models/friend_request.dart';
 import '../services/friend_request_service.dart';
@@ -13,6 +15,7 @@ class FriendRequestsScreen extends StatelessWidget {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
+        backgroundColor: Colors.grey[50],
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,

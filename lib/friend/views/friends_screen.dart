@@ -8,24 +8,25 @@ import 'widgets/show_friend_requests_button.dart';
 import 'add_friend_screen.dart';
 
 class FriendsScreen extends StatelessWidget {
-  const FriendsScreen({super.key});
+  const FriendsScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final service = FriendService();
 
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: Colors.black),
         title: const Text(
           'Friends',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
+
       body: StreamBuilder<List<Friend>>(
         stream: service.friendsStream(),
         builder: (context, snapshot) {
@@ -35,40 +36,44 @@ class FriendsScreen extends StatelessWidget {
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
-          final friends = snapshot.data!;
-          // Wrap in Column so we can put the button below
-          return Column(
-            children: [
-              Expanded(
-                child: friends.isEmpty
-                    ? const Center(
-                  child: Text(
-                    'You have no friends yet',
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
-                  ),
-                )
-                    : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: friends.length,
-                  itemBuilder: (ctx, i) =>
-                      FriendListItem(friend: friends[i]),
-                ),
+          final friends = snapshot.data ?? [];
+          if (friends.isEmpty) {
+            return const Center(
+              child: Text(
+                'You have no friends yet',
+                style: TextStyle(color: Colors.grey, fontSize: 16),
               ),
-
-              // ← Here's your missing button
-              const ShowFriendRequestsButton(),
-            ],
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            itemCount: friends.length,
+            itemBuilder: (ctx, i) => FriendListItem(friend: friends[i]),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.person_add),
-        onPressed: () {
-          // Navigate to your “Search/Add Friend” screen
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => const AddFriendScreen(),
-          ));
-        },
+
+      // raise the button 16px above the nav‐bar
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: const ShowFriendRequestsButton(),
+        ),
+      ),
+
+      // FAB just above that (~64px up instead of 80px)
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 2, right: 2),
+        child: FloatingActionButton(
+          backgroundColor: Colors.white,
+          child: const Icon(Icons.person_add, color: Colors.blue),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+            );
+          },
+        ),
       ),
     );
   }

@@ -4,12 +4,13 @@ import 'package:flutter/material.dart';
 import '../friend_requests_screen.dart';
 
 class ShowFriendRequestsButton extends StatelessWidget {
-  const ShowFriendRequestsButton({super.key});
+  const ShowFriendRequestsButton({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+    return SizedBox(
+      width: double.infinity,
+      height: 56, // fixed height
       child: OutlinedButton(
         onPressed: () {
           Navigator.of(context).push(
@@ -19,20 +20,19 @@ class ShowFriendRequestsButton extends StatelessWidget {
           );
         },
         style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16.0),
-          side: BorderSide(color: Colors.grey.shade300),
+          backgroundColor: Colors.white,                 // white bg
+          side: BorderSide(color: Colors.grey.shade300), // light border
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(12),
           ),
+          padding: EdgeInsets.zero, // no extra internal padding
         ),
-        child: const Center(
-          child: Text(
-            'Show Friend Requests',
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
+        child: const Text(
+          'Show Friend Requests',
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
           ),
         ),
       ),

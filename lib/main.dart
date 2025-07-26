@@ -37,7 +37,16 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: navigatorKey,
       title: 'AcademicHub',
-      theme: ThemeData(useMaterial3: true),
+      theme: ThemeData(
+        useMaterial3: true,
+        // ← add the textSelectionTheme here
+        textSelectionTheme: const TextSelectionThemeData(
+          cursorColor: Colors.blue,           // the blinking caret
+          selectionHandleColor: Colors.blue,  // the draggable “teardrop”
+          selectionColor: Color(0x663399FF),  // highlight color when you drag‐select text
+        ),
+        // ... any other theme settings ...
+      ),
       home: const AuthGate(),
       // You’ll need a '/chat' route in your MaterialApp.routes if you want
       // navigatorKey.currentState?.pushNamed('/chat', ...) to work.

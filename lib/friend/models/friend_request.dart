@@ -1,30 +1,60 @@
 // lib/friend/models/friend_request.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class FriendRequest {
-  final String id;    // ← Firestore document ID
+  // Firestore document ID
+  final String id;
+
+  // Who sent the request
+  final String fromUid;
+
+  // Who should receive it
+  final String toUid;
+
+  // Display name of the target user
   final String name;
-  final String time;
+
+  // URL of the user’s avatar
   final String imageUrl;
+
+  // When the request was created
+  final DateTime created;
+
+  // "pending", "accepted", or "declined"
+  final String status;
 
   FriendRequest({
     required this.id,
+    required this.fromUid,
+    required this.toUid,
     required this.name,
-    required this.time,
     required this.imageUrl,
+    required this.created,
+    required this.status,
   });
 
-  factory FriendRequest.fromMap(String id, Map<String, dynamic> data) {
+  /// Create from Firestore document
+  factory FriendRequest.fromDoc(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
     return FriendRequest(
-      id: id,
-      name: data['name'] as String,
-      time: data['time'] as String,
-      imageUrl: data['imageUrl'] as String,
+      id:        doc.id,
+      fromUid:   data['fromUid']   as String,
+      toUid:     data['toUid']     as String,
+      name:      data['name']      as String,
+      imageUrl:  data['imageUrl']  as String? ?? '',
+      created:   (data['created'] as Timestamp).toDate(),
+      status:    data['status']    as String,
     );
   }
 
+  /// Convert to map for writing to Firestore
   Map<String, dynamic> toMap() => {
-    'name': name,
-    'time': time,
+    'fromUid':  fromUid,
+    'toUid':    toUid,
+    'name':     name,
     'imageUrl': imageUrl,
+    'created':  Timestamp.fromDate(created),
+    'status':   status,
   };
 }

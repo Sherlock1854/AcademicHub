@@ -1,119 +1,163 @@
 // lib/friend/services/friend_request_service.dart
 
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/friend_request.dart';
+import '../../notification/services/notification_service.dart';
+import '../../notification/models/notification_item.dart';
 
 class FriendRequestService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final NotificationService _notifier = NotificationService();
+  late final String _myUid;
+  StreamSubscription<List<FriendRequest>>? _incomingSub;
+  final Set<String> _seenRequestIds = {};
 
-  String get _myUid => FirebaseAuth.instance.currentUser!.uid;
+  FriendRequestService() {
+    _myUid = FirebaseAuth.instance.currentUser!.uid;
+    _incomingSub = receivedRequestsStream().listen(_handleIncoming);
+  }
 
-  /// Stream of requests **I** have received
+  void dispose() {
+    _incomingSub?.cancel();
+  }
+
+  Future<void> _handleIncoming(List<FriendRequest> requests) async {
+    for (final req in requests) {
+      if (!_seenRequestIds.contains(req.id)) {
+        _seenRequestIds.add(req.id);
+
+        // Build a NotificationItem with the required fields:
+        final note = NotificationItem(
+          id:         req.id,
+          title:      'New Friend Request',
+          description:'${req.name} sent you a request',
+          category:   'friend_request',    // your chosen category
+          fromUserId: req.fromUid,         // who sent it
+          timestamp:  DateTime.now(),      // DateTime, not String
+          status:     'unread',            // mark unread
+        );
+
+        // Save + push
+        await _notifier.sendNotification(
+          toUserId: _myUid,
+          item:     note,
+        );
+      }
+    }
+  }
+
   Stream<List<FriendRequest>> receivedRequestsStream() {
     return _db
         .collection('Users')
         .doc(_myUid)
         .collection('receivedRequests')
-        .orderBy('time', descending: true)
+        .where('status', isEqualTo: 'pending')
+        .orderBy('created', descending: true)
         .snapshots()
-        .map((snap) => snap.docs
-        .map((doc) => FriendRequest.fromMap(doc.id, doc.data()))
-        .toList());
+        .map((snap) =>
+        snap.docs.map((doc) => FriendRequest.fromDoc(doc)).toList());
   }
 
-  /// Stream of requests **I** have sent
   Stream<List<FriendRequest>> sentRequestsStream() {
     return _db
         .collection('Users')
         .doc(_myUid)
         .collection('sentRequests')
-        .orderBy('time', descending: true)
+        .where('status', isEqualTo: 'pending')
+        .orderBy('created', descending: true)
         .snapshots()
-        .map((snap) => snap.docs
-        .map((doc) => FriendRequest.fromMap(doc.id, doc.data()))
-        .toList());
+        .map((snap) =>
+        snap.docs.map((doc) => FriendRequest.fromDoc(doc)).toList());
   }
 
-  /// Send a friend request: write into both my `sentRequests` and
-  /// their `receivedRequests` sub-collection
   Future<void> sendRequest(FriendRequest req) async {
-    final theirUid = req.id;
-    final myUid = _myUid;
+    final theirUid = req.toUid;
+    final data = req.toMap();
 
-    // 1) add under my sentRequests (doc ID = theirUid)
     await _db
         .collection('Users')
-        .doc(myUid)
+        .doc(_myUid)
         .collection('sentRequests')
         .doc(theirUid)
-        .set(req.toMap());
+        .set(data);
 
-    // 2) add under their receivedRequests (doc ID = myUid)
     await _db
         .collection('Users')
         .doc(theirUid)
         .collection('receivedRequests')
-        .doc(myUid)
-        .set(req.toMap());
+        .doc(_myUid)
+        .set(data);
   }
 
-  /// Cancel a sent request
   Future<void> cancelRequest(String friendUid) {
-        final me = _myUid;
-        return Future.wait([
-          // remove from my sentRequests
-          _db.collection('Users').doc(me)
-             .collection('sentRequests').doc(friendUid)
-             .delete(),
-          // remove from their receivedRequests
-          _db.collection('Users').doc(friendUid)
-             .collection('receivedRequests').doc(me)
-             .delete(),
-        ]);
-      }
+    return Future.wait([
+      _db
+          .collection('Users')
+          .doc(_myUid)
+          .collection('sentRequests')
+          .doc(friendUid)
+          .update({'status': 'cancelled'}),
+      _db
+          .collection('Users')
+          .doc(friendUid)
+          .collection('receivedRequests')
+          .doc(_myUid)
+          .update({'status': 'cancelled'}),
+    ]);
+  }
 
-  /// Decline/delete a received request
   Future<void> declineRequest(String requesterUid) {
-        final me = _myUid;
-        // remove from my receivedRequests *and* their sentRequests
-        return Future.wait([
-          _db
-            .collection('Users').doc(me)
-            .collection('receivedRequests').doc(requesterUid)
-            .delete(),
-          _db
-            .collection('Users').doc(requesterUid)
-            .collection('sentRequests').doc(me)
-            .delete(),
-        ]);
-      }
+    return Future.wait([
+      _db
+          .collection('Users')
+          .doc(_myUid)
+          .collection('receivedRequests')
+          .doc(requesterUid)
+          .update({'status': 'declined'}),
+      _db
+          .collection('Users')
+          .doc(requesterUid)
+          .collection('sentRequests')
+          .doc(_myUid)
+          .update({'status': 'declined'}),
+    ]);
+  }
 
-    /// Accept a received request: add to both users' "friends" and clean up
-    Future<void> acceptRequest(FriendRequest req) async {
-        final me = _myUid;
-        final other = req.id;
+  Future<void> acceptRequest(FriendRequest req) async {
+    final other = req.fromUid;
+    final friendData = {
+      'name':    req.name,
+      'addedAt': req.created.toIso8601String(),
+    };
 
-        // 1) add each other to friends
-        await _db
-          .collection('Users').doc(me)
-          .collection('friends').doc(other)
-          .set(req.toMap());
-        await _db
-          .collection('Users').doc(other)
-          .collection('friends').doc(me)
-          .set(req.toMap());
+    await _db
+        .collection('Users')
+        .doc(_myUid)
+        .collection('friends')
+        .doc(other)
+        .set(friendData);
+    await _db
+        .collection('Users')
+        .doc(other)
+        .collection('friends')
+        .doc(_myUid)
+        .set(friendData);
 
-        // 2) delete original request from both subcollections
-        await Future.wait([
-          _db
-            .collection('Users').doc(me)
-            .collection('receivedRequests').doc(other)
-            .delete(),
-          _db
-            .collection('Users').doc(other)
-            .collection('sentRequests').doc(me)
-            .delete(),
-        ]);
-      }
+    await Future.wait([
+      _db
+          .collection('Users')
+          .doc(_myUid)
+          .collection('receivedRequests')
+          .doc(other)
+          .delete(),
+      _db
+          .collection('Users')
+          .doc(other)
+          .collection('sentRequests')
+          .doc(_myUid)
+          .delete(),
+    ]);
+  }
 }

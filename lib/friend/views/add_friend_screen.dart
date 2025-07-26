@@ -19,8 +19,8 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   final _service = FriendRequestService();
 
   late String _myUid;
-  Set<String> _friendIds = {};       // already-friends
-  Set<String> _pendingIds = {};      // newly requested
+  Set<String> _friendIds = {};       // already friends
+  Set<String> _pendingIds = {};      // requests sent
   List<UserResult> _results = [];
   bool _isSearching = false;
 
@@ -29,6 +29,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
     super.initState();
     _myUid = FirebaseAuth.instance.currentUser!.uid;
     _loadFriendIds();
+    _loadPendingIds();
   }
 
   Future<void> _loadFriendIds() async {
@@ -39,6 +40,19 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
         .get();
     setState(() {
       _friendIds = snap.docs.map((d) => d.id).toSet();
+    });
+  }
+
+  Future<void> _loadPendingIds() async {
+    final snap = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(_myUid)
+        .collection('sentRequests')
+        .where('status', isEqualTo: 'pending')
+        .get();
+
+    setState(() {
+      _pendingIds = snap.docs.map((d) => d.id).toSet();
     });
   }
 
@@ -68,11 +82,11 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
       final results = snap.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
         final first = data['firstName']?.toString() ?? '';
-        final last = data['surname']?.toString() ?? '';
+        final last  = data['surname']?.toString() ?? '';
         return UserResult(
           id: doc.id,
           name: '$first $last'.trim(),
-          imageUrl: data['imageUrl']?.toString() ?? 'https://placehold.it/48',
+          imageUrl: data['imageUrl']?.toString() ?? '',
         );
       }).toList();
 
@@ -92,21 +106,21 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   }
 
   Future<void> _sendRequest(UserResult user) async {
+    final now = DateTime.now();
     final req = FriendRequest(
-      id: user.id,
-      name: user.name,
-      time: DateTime.now().toIso8601String(),
-      imageUrl: user.imageUrl,
+      id:        user.id,         // their UID as document ID
+      fromUid:   _myUid,
+      toUid:     user.id,
+      name:      user.name,
+      imageUrl:  user.imageUrl,
+      created:   now,
+      status:    'pending',
     );
     await _service.sendRequest(req);
 
-    // mark locally as pending
     setState(() {
       _pendingIds.add(user.id);
     });
-
-    // optionally reload actual friends
-    await _loadFriendIds();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Request sent to ${user.name}')),
@@ -114,45 +128,53 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   }
 
   @override
-  Widget build(BuildContext ctx) {
+  Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 1,
+        leading: const BackButton(color: Colors.black),
+        centerTitle: true,
         title: const Text(
           'Add Friend',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: BackButton(color: Colors.black),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Search input
             TextField(
               controller: _searchController,
               textInputAction: TextInputAction.search,
+              cursorColor: Colors.blue,
               onSubmitted: (_) => _doSearch(),
               decoration: InputDecoration(
                 hintText: 'Search by email',
                 filled: true,
-                fillColor: const Color(0xFFF7F7F7),
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.search, color: Colors.blue),
+                  onPressed: _doSearch,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: Colors.grey.shade300),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: _doSearch,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: const BorderSide(color: Colors.blue, width: 2),
                 ),
               ),
             ),
             const SizedBox(height: 16),
-
-            // Results or loading
             if (_isSearching)
               const Center(child: CircularProgressIndicator())
             else if (_results.isEmpty)
@@ -168,42 +190,73 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
               Expanded(
                 child: ListView.separated(
                   itemCount: _results.length,
-                  separatorBuilder: (_, __) => const Divider(),
+                  separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (_, i) {
-                    final user = _results[i];
-                    final isSelf = user.id == _myUid;
-                    final isFriend = _friendIds.contains(user.id);
+                    final user     = _results[i];
+                    final isSelf    = user.id    == _myUid;
+                    final isFriend  = _friendIds.contains(user.id);
                     final isPending = _pendingIds.contains(user.id);
 
                     Widget? button;
                     if (isSelf || isFriend) {
                       button = null;
                     } else if (isPending) {
-                      button = ElevatedButton(
+                      button = OutlinedButton(
                         onPressed: null,
-                        style: ElevatedButton.styleFrom(
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          side: BorderSide(color: Colors.grey.shade300),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
                         ),
-                        child: const Text('Pending'),
+                        child: const Text(
+                          'Pending',
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       );
                     } else {
-                      button = ElevatedButton(
+                      button = OutlinedButton(
                         onPressed: () => _sendRequest(user),
-                        style: ElevatedButton.styleFrom(
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.blue),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
                         ),
-                        child: const Text('Add'),
+                        child: const Text(
+                          'Add',
+                          style: TextStyle(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold),
+                        ),
                       );
                     }
 
                     return ListTile(
+                      contentPadding: EdgeInsets.zero,
                       leading: CircleAvatar(
                         radius: 24,
-                        backgroundImage: NetworkImage(user.imageUrl),
+                        backgroundColor: Colors.grey[200],
+                        child: ClipOval(
+                          child: FadeInImage.assetNetwork(
+                            placeholder: 'assets/images/fail.png',
+                            image: user.imageUrl,
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                            imageErrorBuilder: (ctx, err, stack) =>
+                                Image.asset(
+                                  'assets/images/fail.png',
+                                  width: 48,
+                                  height: 48,
+                                  fit: BoxFit.cover,
+                                ),
+                          ),
+                        ),
                       ),
                       title: Text(
                         user.name,
@@ -221,7 +274,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   }
 }
 
-/// Simple model for a user search result
+// Simple model for a user search result
 class UserResult {
   final String id;
   final String name;

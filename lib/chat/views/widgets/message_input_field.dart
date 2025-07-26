@@ -64,15 +64,22 @@ class _MessageInputFieldState extends State<MessageInputField> {
                 textInputAction: TextInputAction.newline,
                 minLines: 1,
                 maxLines: 5,
+                cursorColor: Colors.blue,
                 decoration: InputDecoration(
                   hintText: widget.isBot ? 'Ask me anything…' : 'Type a message',
-                  contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   filled: true,
-                  fillColor: const Color(0xFFF7F7F7),
-                  border: OutlineInputBorder(
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  // unfocused border
+                  enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  // focused border
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: const BorderSide(color: Colors.blue, width: 2),
                   ),
                 ),
               ),
