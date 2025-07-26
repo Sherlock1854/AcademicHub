@@ -93,6 +93,7 @@ class _PostListScreenState extends State<PostListScreen> {
         ),
         actions: [
           PopupMenuButton<PostSortOption>(
+            color: Colors.white,
             icon: Row(
               children: const [
                 Icon(Icons.sort, color: Colors.black),

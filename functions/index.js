@@ -1,55 +1,96 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
+// functions/index.js
 
-const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/https");
-const logger = require("firebase-functions/logger");
-
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
-
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
-
-// exports.helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
-const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { setGlobalOptions } = require("firebase-functions");
+const { onCall } = require("firebase-functions/v2/https");
+const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
+
 admin.initializeApp();
 
-exports.sendPushNotification = functions.https.onCall(async (data, context) => {
-  const { targetUserId, title, body } = data;
+// limit concurrency / set region if you like
+setGlobalOptions({
+  maxInstances: 10,
+  region: "us-central1",
+});
 
-  const userDoc = await admin.firestore().collection('Users').doc(targetUserId).get();
-  const fcmToken = userDoc.data().fcmToken;
-
-  if (!fcmToken) {
-    console.warn(`No FCM token for user ${targetUserId}`);
-    return;
+// 1) Callable manual push
+exports.sendPushNotification = onCall(async (req) => {
+  const { targetUserId, title, body } = req.data ?? {};
+  if (!targetUserId || !title || !body) {
+    throw new Error("targetUserId, title and body are required");
   }
 
-  const message = {
-    token: fcmToken,
-    notification: { title, body },
-  };
+  const userSnap = await admin.firestore().collection("Users").doc(targetUserId).get();
+  const token = userSnap.exists ? userSnap.data().fcmToken : null;
+  if (!token) throw new Error("No FCM token for targetUserId");
 
-  await admin.messaging().send(message);
+  await admin.messaging().send({
+    token,
+    notification: { title, body },
+  });
   return { success: true };
 });
+
+// 2) New comment → notify post author
+exports.notifyOnComment = onDocumentCreated(
+  "topics/{topicId}/posts/{postId}/comments/{commentId}",
+  async (snap, ctx) => {
+    const comment = snap.data();
+    const { topicId, postId } = ctx.params;
+
+    // load the post
+    const postSnap = await admin
+      .firestore()
+      .collection("topics")
+      .doc(topicId)
+      .collection("posts")
+      .doc(postId)
+      .get();
+    if (!postSnap.exists) return;
+
+    const post = postSnap.data();
+    const authorId = post.author;
+    if (!authorId || authorId === comment.authorId) return;
+
+    const userSnap = await admin.firestore().collection("Users").doc(authorId).get();
+    const token = userSnap.exists ? userSnap.data().fcmToken : null;
+    if (!token) return;
+
+    await admin.messaging().send({
+      token,
+      notification: {
+        title: "New comment on your post",
+        body: comment.text?.slice(0, 100) + (comment.text?.length > 100 ? "…" : ""),
+      },
+      data: { topicId, postId, type: "comment" },
+    });
+  }
+);
+
+// 3) Post updated → if likeCount increased, notify author
+exports.notifyOnLike = onDocumentUpdated(
+  "topics/{topicId}/posts/{postId}",
+  async (change, ctx) => {
+    const before = change.before.data() || {};
+    const after = change.after.data() || {};
+    const prevLikes = before.likeCount ?? 0;
+    const newLikes = after.likeCount ?? 0;
+    if (newLikes <= prevLikes) return;
+
+    const authorId = after.author;
+    if (!authorId) return;
+
+    const userSnap = await admin.firestore().collection("Users").doc(authorId).get();
+    const token = userSnap.exists ? userSnap.data().fcmToken : null;
+    if (!token) return;
+
+    await admin.messaging().send({
+      token,
+      notification: {
+        title: "Someone liked your post",
+        body: `Your post now has ${newLikes} like${newLikes > 1 ? "s" : ""}.`,
+      },
+      data: { topicId: ctx.params.topicId, postId: ctx.params.postId, type: "like" },
+    });
+  }
+);
