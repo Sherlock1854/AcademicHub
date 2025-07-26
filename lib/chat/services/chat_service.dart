@@ -5,12 +5,15 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../models/chat_message.dart';
 
 class ChatService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final FirebaseStorage   _storage = FirebaseStorage.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   String get _myUid => FirebaseAuth.instance.currentUser!.uid;
 
@@ -26,13 +29,16 @@ class ChatService {
     return col
         .orderBy('timestamp', descending: false)
         .snapshots()
-        .map((snap) => snap.docs
-        .where((d) {
-      final data = d.data();
-      return data['text'] != null || data['imageUrl'] != null;
-    })
-        .map((d) => ChatMessage.fromDoc(d))
-        .toList());
+        .map(
+          (snap) =>
+              snap.docs
+                  .where((d) {
+                    final data = d.data();
+                    return data['text'] != null || data['imageUrl'] != null;
+                  })
+                  .map((d) => ChatMessage.fromDoc(d))
+                  .toList(),
+        );
   }
 
   /// Upload image to Firebase Storage and return its URL
@@ -40,7 +46,18 @@ class ChatService {
     final fileName = DateTime.now().millisecondsSinceEpoch.toString();
     final ref = _storage.ref().child('chat_images/$friendId/$fileName.jpg');
     await ref.putFile(file);
-    return await ref.getDownloadURL();
+    return ref.getDownloadURL();
+  }
+
+  /// Helper to invoke your Cloud Function for push notifications
+  Future<void> _sendPushNotification({
+    required String toUid,
+    required String fromUid,
+    required String text,
+  }) {
+    return _functions.httpsCallable('notifyOnNewMessage').call(
+      <String, dynamic>{'toUid': toUid, 'fromUid': fromUid, 'text': text},
+    );
   }
 
   /// Send [text] or [imageUrl] to [friendId].
@@ -53,18 +70,21 @@ class ChatService {
 
     final now = FieldValue.serverTimestamp();
     final myCol = _db
-        .collection('Users').doc(_myUid)
-        .collection('friends').doc(friendId)
+        .collection('Users')
+        .doc(_myUid)
+        .collection('friends')
+        .doc(friendId)
         .collection('messages');
     final theirCol = _db
-        .collection('Users').doc(friendId)
-        .collection('friends').doc(_myUid)
+        .collection('Users')
+        .doc(friendId)
+        .collection('friends')
+        .doc(_myUid)
         .collection('messages');
 
     final docRef = myCol.doc();
     final msgId = docRef.id;
 
-    // Sender’s copy starts unseen
     final dataForMe = {
       'text': text,
       'imageUrl': imageUrl,
@@ -72,8 +92,6 @@ class ChatService {
       'isSender': true,
       'seen': false,
     };
-
-    // Recipient’s copy starts unseen by them
     final dataForThem = {
       'text': text,
       'imageUrl': imageUrl,
@@ -82,12 +100,13 @@ class ChatService {
       'seen': false,
     };
 
+    // write message copies
     await Future.wait([
       docRef.set(dataForMe),
       theirCol.doc(msgId).set(dataForThem),
     ]);
 
-    // Update conversation summary
+    // update conversation summaries
     final summaryForMe = {
       'lastText': text,
       'lastIsImage': imageUrl != null,
@@ -102,31 +121,43 @@ class ChatService {
       'lastIsSender': false,
       'hasUnreadMessages': true,
     };
-
     await Future.wait([
       _db
-          .collection('Users').doc(_myUid)
-          .collection('friends').doc(friendId)
+          .collection('Users')
+          .doc(_myUid)
+          .collection('friends')
+          .doc(friendId)
           .update(summaryForMe),
       _db
-          .collection('Users').doc(friendId)
-          .collection('friends').doc(_myUid)
+          .collection('Users')
+          .doc(friendId)
+          .collection('friends')
+          .doc(_myUid)
           .update(summaryForThem),
     ]);
+
+    // fire off push notification (non-blocking)
+    if (text != null && text.isNotEmpty) {
+      // fire-and-forget the Cloud Function call
+      _sendPushNotification(toUid: friendId, fromUid: _myUid, text: text);
+    }
   }
 
   /// When *this* user views the chat, mark all incoming as seen
   /// and flip the sender’s copy to seen too.
   Future<void> markMessagesAsSeen(String friendId) async {
     final myMsgsRef = _db
-        .collection('Users').doc(_myUid)
-        .collection('friends').doc(friendId)
+        .collection('Users')
+        .doc(_myUid)
+        .collection('friends')
+        .doc(friendId)
         .collection('messages');
 
-    final snap = await myMsgsRef
-        .where('isSender', isEqualTo: false)
-        .where('seen', isEqualTo: false)
-        .get();
+    final snap =
+        await myMsgsRef
+            .where('isSender', isEqualTo: false)
+            .where('seen', isEqualTo: false)
+            .get();
 
     if (snap.docs.isEmpty) return;
 
@@ -136,8 +167,10 @@ class ChatService {
       batch.update(doc.reference, {'seen': true});
       // mark sender’s copy as seen
       final theirDoc = _db
-          .collection('Users').doc(friendId)
-          .collection('friends').doc(_myUid)
+          .collection('Users')
+          .doc(friendId)
+          .collection('friends')
+          .doc(_myUid)
           .collection('messages')
           .doc(doc.id);
       batch.update(theirDoc, {'seen': true});
@@ -151,14 +184,20 @@ class ChatService {
     required String messageId,
   }) {
     final mine = _db
-        .collection('Users').doc(_myUid)
-        .collection('friends').doc(friendId)
-        .collection('messages').doc(messageId);
+        .collection('Users')
+        .doc(_myUid)
+        .collection('friends')
+        .doc(friendId)
+        .collection('messages')
+        .doc(messageId);
 
     final theirs = _db
-        .collection('Users').doc(friendId)
-        .collection('friends').doc(_myUid)
-        .collection('messages').doc(messageId);
+        .collection('Users')
+        .doc(friendId)
+        .collection('friends')
+        .doc(_myUid)
+        .collection('messages')
+        .doc(messageId);
 
     return Future.wait([mine.delete(), theirs.delete()]);
   }
@@ -172,13 +211,19 @@ class ChatService {
     final data = {'text': newText, 'edited': true};
 
     final mine = _db
-        .collection('Users').doc(_myUid)
-        .collection('friends').doc(friendId)
-        .collection('messages').doc(messageId);
+        .collection('Users')
+        .doc(_myUid)
+        .collection('friends')
+        .doc(friendId)
+        .collection('messages')
+        .doc(messageId);
     final theirs = _db
-        .collection('Users').doc(friendId)
-        .collection('friends').doc(_myUid)
-        .collection('messages').doc(messageId);
+        .collection('Users')
+        .doc(friendId)
+        .collection('friends')
+        .doc(_myUid)
+        .collection('messages')
+        .doc(messageId);
 
     return Future.wait([mine.update(data), theirs.update(data)]);
   }
@@ -192,13 +237,19 @@ class ChatService {
     final data = {'imageUrl': newImageUrl, 'edited': true};
 
     final mine = _db
-        .collection('Users').doc(_myUid)
-        .collection('friends').doc(friendId)
-        .collection('messages').doc(messageId);
+        .collection('Users')
+        .doc(_myUid)
+        .collection('friends')
+        .doc(friendId)
+        .collection('messages')
+        .doc(messageId);
     final theirs = _db
-        .collection('Users').doc(friendId)
-        .collection('friends').doc(_myUid)
-        .collection('messages').doc(messageId);
+        .collection('Users')
+        .doc(friendId)
+        .collection('friends')
+        .doc(_myUid)
+        .collection('messages')
+        .doc(messageId);
 
     return Future.wait([mine.update(data), theirs.update(data)]);
   }
@@ -206,16 +257,20 @@ class ChatService {
   /// Wipe out an entire conversation
   Future<void> deleteConversation(String friendId) async {
     final myMsgsRef = _db
-        .collection('Users').doc(_myUid)
-        .collection('friends').doc(friendId)
+        .collection('Users')
+        .doc(_myUid)
+        .collection('friends')
+        .doc(friendId)
         .collection('messages');
     final theirMsgsRef = _db
-        .collection('Users').doc(friendId)
-        .collection('friends').doc(_myUid)
+        .collection('Users')
+        .doc(friendId)
+        .collection('friends')
+        .doc(_myUid)
         .collection('messages');
 
     final batch = _db.batch();
-    final mineSnap  = await myMsgsRef.get();
+    final mineSnap = await myMsgsRef.get();
     final theirSnap = await theirMsgsRef.get();
 
     for (var doc in mineSnap.docs) batch.delete(doc.reference);

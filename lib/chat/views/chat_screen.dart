@@ -14,6 +14,7 @@ import '../services/bot_chat_service.dart';
 import 'widgets/date_divider.dart';
 import 'widgets/message_bubble.dart';
 import 'widgets/message_input_field.dart';
+import '../../utilities/active_chat.dart';
 
 class ChatScreen extends StatefulWidget {
   final Friend friend;
@@ -25,9 +26,9 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _chatService = ChatService();
-  final _botService  = BotChatService();
-  final _picker      = ImagePicker();
-  final _scrollCtrl  = ScrollController();
+  final _botService = BotChatService();
+  final _picker = ImagePicker();
+  final _scrollCtrl = ScrollController();
 
   late final Stream<List<ChatMessage>> _messages$;
   bool _awaitingBot = false;
@@ -38,10 +39,14 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
 
+    // mark this chat as “active”
+    activeChatFriendId = widget.friend.id;
+
     // choose stream based on bot vs peer
-    _messages$ = _isBotChat
-        ? _botService.messagesStream()
-        : _chatService.messagesStream(widget.friend.id);
+    _messages$ =
+        _isBotChat
+            ? _botService.messagesStream()
+            : _chatService.messagesStream(widget.friend.id);
 
     // if peer chat, mark incoming as seen and flip sender copy
     if (!_isBotChat) {
@@ -49,6 +54,13 @@ class _ChatScreenState extends State<ChatScreen> {
         _chatService.markMessagesAsSeen(widget.friend.id);
       });
     }
+  }
+
+  @override
+  void dispose() {
+    // no longer active
+    activeChatFriendId = null;
+    super.dispose();
   }
 
   void _scrollToBottom() {
@@ -67,10 +79,7 @@ class _ChatScreenState extends State<ChatScreen> {
       await _botService.askAndSave(text);
       setState(() => _awaitingBot = false);
     } else {
-      await _chatService.sendMessage(
-        friendId: widget.friend.id,
-        text: text,
-      );
+      await _chatService.sendMessage(friendId: widget.friend.id, text: text);
     }
     _scrollToBottom();
   }
@@ -105,10 +114,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final avatarImage = (widget.friend.avatarUrl != null && widget.friend.avatarUrl!.isNotEmpty)
-        ? NetworkImage(widget.friend.avatarUrl!)
-        : const AssetImage('assets/images/avatar_placeholder.png') as ImageProvider;
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -117,7 +122,25 @@ class _ChatScreenState extends State<ChatScreen> {
         leading: const BackButton(color: Colors.black),
         title: Row(
           children: [
-            CircleAvatar(radius: 20, backgroundImage: avatarImage),
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: Colors.grey[200],
+              child: ClipOval(
+                child: Image.network(
+                  widget.friend.avatarUrl!, // always set
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.cover,
+                  errorBuilder:
+                      (ctx, err, stack) => Image.asset(
+                        'assets/images/fail.png', // fallback on load‐error
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                      ),
+                ),
+              ),
+            ),
             const SizedBox(width: 12),
             Text(
               widget.friend.name,
@@ -127,19 +150,22 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         actions: [
           PopupMenuButton<String>(
+            color: Colors.white, // ← makes the menu’s background white
+            elevation: 4, // ← optional shadow
             onSelected: _handleMenuSelection,
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'pin',
-                child: Text(
-                    widget.friend.pinned ? 'Unpin Friend' : 'Pin Friend'
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Text('Delete Friend'),
-              ),
-            ],
+            itemBuilder:
+                (_) => [
+                  PopupMenuItem(
+                    value: 'pin',
+                    child: Text(
+                      widget.friend.pinned ? 'Unpin Friend' : 'Pin Friend',
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Delete Friend'),
+                  ),
+                ],
           ),
         ],
       ),
@@ -179,13 +205,16 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: MessageInputField(
                 isBot: _isBotChat,
-                onSend: _awaitingBot
-                    ? (_) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please wait for bot reply…')),
-                  );
-                }
-                    : _handleSend,
+                onSend:
+                    _awaitingBot
+                        ? (_) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please wait for bot reply…'),
+                            ),
+                          );
+                        }
+                        : _handleSend,
                 onImagePressed: _handlePickImage,
                 onCameraPressed: _handleTakePhoto,
               ),
@@ -202,55 +231,92 @@ class _ChatScreenState extends State<ChatScreen> {
       final current = widget.friend.pinned;
       await friendService.pinFriend(widget.friend.id, !current);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(current ? 'Unpinned' : 'Pinned')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(current ? 'Unpinned' : 'Pinned')));
     } else if (value == 'delete') {
       final confirm = await showDialog<bool>(
         context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Delete Friend'),
-          content: const Text('Are you sure you want to delete this friend and all messages?'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            TextButton(onPressed: () => Navigator.pop(context, true),  child: const Text('Delete', style: TextStyle(color: Colors.red))),
-          ],
-        ),
+        builder:
+            (_) => AlertDialog(
+              title: const Text('Delete Friend'),
+              content: const Text(
+                'Are you sure you want to delete this friend and all messages?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text(
+                    'Delete',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
       );
       if (confirm == true) {
         await friendService.deleteFriend(widget.friend.id);
         if (!mounted) return;
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Friend deleted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Friend deleted')));
       }
     }
   }
 
   Widget _buildListView(List<ChatMessage> history) {
-    final rev = history.reversed.toList();
+    final now       = DateTime.now();
+    final today     = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
     return ListView.builder(
       controller: _scrollCtrl,
-      reverse: true,
+      reverse: false,  // oldest at top, newest at bottom
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      itemCount: rev.length,
+      itemCount: history.length,
       itemBuilder: (ctx, i) {
-        final msg  = rev[i];
-        final prev = i + 1 < rev.length ? rev[i + 1] : null;
+        final msg  = history[i];
+        final prev = i > 0 ? history[i - 1] : null;
 
-        final showDivider = prev == null ||
-            prev.timestamp.year  != msg.timestamp.year ||
-            prev.timestamp.month != msg.timestamp.month ||
-            prev.timestamp.day   != msg.timestamp.day;
+        // strip time component
+        final msgDate  = DateTime(msg.timestamp.year, msg.timestamp.month, msg.timestamp.day);
+        final prevDate = prev != null
+            ? DateTime(prev.timestamp.year, prev.timestamp.month, prev.timestamp.day)
+            : null;
 
-        final diff = DateTime.now().difference(msg.timestamp).inDays;
-        final dateLabel = diff == 0
-            ? 'Today'
-            : diff == 1
-            ? 'Yesterday'
-            : DateFormat('MMM d, yyyy').format(msg.timestamp);
+        // show divider if first item or date changed
+        final showDivider = prevDate == null || msgDate != prevDate;
 
+        // pick label
+        String dateLabel;
+        if (msgDate == today) {
+          dateLabel = 'Today';
+        } else if (msgDate == yesterday) {
+          dateLabel = 'Yesterday';
+        } else {
+          dateLabel = DateFormat('MMM d, yyyy').format(msg.timestamp);
+        }
+
+        final bubble = MessageBubble(msg: msg);
+
+        if (_isBotChat) {
+          // for bot, no long-press menu
+          return Column(
+            crossAxisAlignment:
+            msg.isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: [
+              if (showDivider) DateDivider(date: dateLabel),
+              bubble,
+            ],
+          );
+        }
+
+        // peer chat: allow edit/delete on long press
         return Column(
           crossAxisAlignment:
           msg.isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -258,8 +324,8 @@ class _ChatScreenState extends State<ChatScreen> {
             if (showDivider) DateDivider(date: dateLabel),
             GestureDetector(
               key: ValueKey(msg.id),
-              onLongPress: _isBotChat ? null : () => _showMessageOptions(context, msg),
-              child: MessageBubble(msg: msg),
+              onLongPress: () => _showMessageOptions(context, msg),
+              child: bubble,
             ),
           ],
         );
@@ -270,49 +336,115 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showMessageOptions(BuildContext ctx, ChatMessage msg) {
     showModalBottomSheet(
       context: ctx,
-      builder: (_) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(
-            leading: Icon(msg.imageUrl != null ? Icons.image : Icons.edit),
-            title: Text(msg.imageUrl != null ? 'Edit Image' : 'Edit Text'),
-            onTap: () {
-              Navigator.pop(ctx);
-              if (msg.imageUrl != null) {
-                _editImage(ctx, msg);
-              } else {
-                _editMessage(ctx, msg);
-              }
-            },
+      builder:
+          (_) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(
+                    msg.imageUrl != null ? Icons.image : Icons.edit,
+                  ),
+                  title: Text(
+                    msg.imageUrl != null ? 'Edit Image' : 'Edit Text',
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    if (msg.imageUrl != null) {
+                      _editImage(ctx, msg);
+                    } else {
+                      _editMessage(ctx, msg);
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete),
+                  title: const Text('Delete'),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await _chatService.deleteMessage(
+                      friendId: widget.friend.id,
+                      messageId: msg.id,
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
-          ListTile(
-            leading: const Icon(Icons.delete),
-            title: const Text('Delete'),
-            onTap: () async {
-              Navigator.pop(ctx);
-              await _chatService.deleteMessage(
-                friendId: widget.friend.id,
-                messageId: msg.id,
-              );
-            },
-          ),
-        ]),
-      ),
     );
   }
 
   Future<void> _editMessage(BuildContext ctx, ChatMessage msg) async {
     final controller = TextEditingController(text: msg.text);
+
     final newText = await showDialog<String>(
       context: ctx,
-      builder: (_) => AlertDialog(
-        title: const Text('Edit message'),
-        content: TextField(controller: controller, maxLines: 3),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('Save')),
-        ],
-      ),
+      builder: (dialogCtx) {
+        final screenWidth = MediaQuery.of(dialogCtx).size.width;
+        final fieldWidth = screenWidth * 0.8;
+
+        return AlertDialog(
+          insetPadding: EdgeInsets.symmetric(horizontal: screenWidth * 0.1),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text('Edit message'),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: fieldWidth,
+              maxWidth: fieldWidth, // ← fixed width
+              maxHeight: 200,
+            ),
+            child: TextField(
+              controller: controller,
+              keyboardType: TextInputType.multiline,
+              minLines: 1,
+              maxLines: 5, // ← scrollable after 5 lines
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(
+                    color: const Color(0xFF2196F3), // bubble‐blue
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          actionsPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 4,
+          ),
+          actions: [
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF2196F3),
+              ),
+              onPressed: () => Navigator.pop(dialogCtx, null),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF2196F3),
+              ),
+              onPressed: () => Navigator.pop(dialogCtx, controller.text),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
     );
+
     if (newText != null && newText.trim().isNotEmpty) {
       await _chatService.updateMessage(
         friendId: widget.friend.id,
