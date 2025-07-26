@@ -1,3 +1,5 @@
+// lib/screens/post_list_screen.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -20,9 +22,10 @@ class PostListScreen extends StatefulWidget {
 
 class _PostListScreenState extends State<PostListScreen> {
   final _searchController = TextEditingController();
+  String _searchInput = '';
   String _searchQuery = '';
-  final Map<String, String> _userNamesCache = {};
   PostSortOption _sortOption = PostSortOption.newest;
+  final Map<String, String> _userNamesCache = {};
 
   @override
   void dispose() {
@@ -30,9 +33,14 @@ class _PostListScreenState extends State<PostListScreen> {
     super.dispose();
   }
 
+  void _applySearch() {
+    setState(() {
+      _searchQuery = _searchInput.trim().toLowerCase();
+    });
+  }
+
   bool _matchesFilter(ForumPost p) {
-    final q = _searchQuery.toLowerCase();
-    return p.title.toLowerCase().contains(q);
+    return p.title.toLowerCase().contains(_searchQuery);
   }
 
   String _timeAgo(DateTime t) {
@@ -43,11 +51,14 @@ class _PostListScreenState extends State<PostListScreen> {
   }
 
   Future<String> _getFullName(String userId) async {
-    if (_userNamesCache.containsKey(userId)) return _userNamesCache[userId]!;
-    final snap = await FirebaseFirestore.instance.collection('Users').doc(userId).get();
-    final data = snap.data();
-    final fullName = '${data?['firstName'] ?? ''} ${data?['surname'] ?? ''}'.trim();
-    _userNamesCache[userId] = fullName.isEmpty ? 'Unknown' : fullName;
+    if (_userNamesCache.containsKey(userId)) {
+      return _userNamesCache[userId]!;
+    }
+    final doc =
+        await FirebaseFirestore.instance.collection('Users').doc(userId).get();
+    final data = doc.data() ?? {};
+    final full = '${data['firstName'] ?? ''} ${data['surname'] ?? ''}'.trim();
+    _userNamesCache[userId] = full.isEmpty ? 'Unknown' : full;
     return _userNamesCache[userId]!;
   }
 
@@ -57,7 +68,9 @@ class _PostListScreenState extends State<PostListScreen> {
         posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         break;
       case PostSortOption.mostCommented:
-        posts.sort((a, b) => (b.commentCount ?? 0).compareTo(a.commentCount ?? 0));
+        posts.sort(
+          (a, b) => (b.commentCount ?? 0).compareTo(a.commentCount ?? 0),
+        );
         break;
       case PostSortOption.mostLiked:
         posts.sort((a, b) => (b.likeCount ?? 0).compareTo(a.likeCount ?? 0));
@@ -68,11 +81,16 @@ class _PostListScreenState extends State<PostListScreen> {
   @override
   Widget build(BuildContext ctx) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(widget.topic.title),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Colors.grey[50],
         elevation: 1,
+        centerTitle: true,
+        foregroundColor: Colors.black,
+        title: Text(
+          widget.topic.title,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
           PopupMenuButton<PostSortOption>(
             icon: Row(
@@ -83,42 +101,65 @@ class _PostListScreenState extends State<PostListScreen> {
               ],
             ),
             onSelected: (val) => setState(() => _sortOption = val),
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: PostSortOption.mostCommented,
-                child: const Text('Top comments'),
-              ),
-              PopupMenuItem(
-                value: PostSortOption.newest,
-                child: const Text('Newest first'),
-              ),
-              PopupMenuItem(
-                value: PostSortOption.mostLiked,
-                child: const Text('Most liked'),
-              ),
-            ],
+            itemBuilder:
+                (_) => const [
+                  PopupMenuItem(
+                    value: PostSortOption.mostCommented,
+                    child: Text('Top comments'),
+                  ),
+                  PopupMenuItem(
+                    value: PostSortOption.newest,
+                    child: Text('Newest first'),
+                  ),
+                  PopupMenuItem(
+                    value: PostSortOption.mostLiked,
+                    child: Text('Most liked'),
+                  ),
+                ],
           ),
         ],
       ),
+
       body: Column(
         children: [
+          // ── Search Bar ─────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: TextField(
               controller: _searchController,
+              cursorColor: Colors.blue,
+              textInputAction: TextInputAction.search,
+              onChanged: (val) => _searchInput = val,
+              onSubmitted: (_) => _applySearch(),
               decoration: InputDecoration(
                 hintText: 'Search by title…',
-                prefixIcon: const Icon(Icons.search),
                 filled: true,
-                fillColor: const Color(0xFFF7F7F7),
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 0,
+                  horizontal: 16,
+                ),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.search, color: Colors.blue),
+                  onPressed: _applySearch,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
                 ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: const BorderSide(color: Colors.blue, width: 2),
+                ),
               ),
-              onChanged: (val) => setState(() => _searchQuery = val.trim()),
             ),
           ),
+
+          // ── Posts List ─────────────────────────────────────────
           Expanded(
             child: StreamBuilder<List<ForumPost>>(
               stream: ForumService().posts(widget.topic.id),
@@ -131,15 +172,19 @@ class _PostListScreenState extends State<PostListScreen> {
                 }
 
                 final allPosts = snap.data!;
-                final posts = _searchQuery.isEmpty
-                    ? [...allPosts]
-                    : allPosts.where(_matchesFilter).toList();
+                final posts =
+                    _searchQuery.isEmpty
+                        ? [...allPosts]
+                        : allPosts.where(_matchesFilter).toList();
 
                 _sortPosts(posts);
 
                 if (posts.isEmpty) {
                   return const Center(
-                    child: Text('No posts found', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                    child: Text(
+                      'No posts found',
+                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                    ),
                   );
                 }
 
@@ -153,118 +198,238 @@ class _PostListScreenState extends State<PostListScreen> {
 
                     return FutureBuilder<String>(
                       future: _getFullName(p.author),
-                      builder: (ctx, nameSnap) {
+                      builder: (ctx2, nameSnap) {
                         final fullName = nameSnap.data ?? 'Loading…';
-                        final avatarUrl = p.userImageUrl.isNotEmpty
-                            ? p.userImageUrl
-                            : 'https://firebasestorage.googleapis.com/v0/b/academichub-c1068.appspot.com/o/profile%2Fdefault_user.png?alt=media';
+                        final avatarUrl =
+                            p.userImageUrl.isNotEmpty ? p.userImageUrl : '';
 
                         return Card(
                           margin: const EdgeInsets.symmetric(horizontal: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           elevation: 1,
+                          color: Colors.white,
                           child: Container(
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.grey.shade300),
                               borderRadius: BorderRadius.circular(12),
+                              color: Colors.white,
                             ),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
                               onTap: () {
-                                Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => PostDetailScreen(post: p)));
+                                Navigator.of(ctx2).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => PostDetailScreen(post: p),
+                                  ),
+                                );
                               },
                               child: Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    // ── Header ───────────────────────
                                     Row(
                                       children: [
-                                        CircleAvatar(radius: 20, backgroundImage: NetworkImage(avatarUrl)),
+                                        CircleAvatar(
+                                          radius: 20,
+                                          backgroundColor: Colors.grey[200],
+                                          child: ClipOval(
+                                            child: FadeInImage.assetNetwork(
+                                              placeholder:
+                                                  'assets/images/fail.png',
+                                              image: avatarUrl,
+                                              width: 40,
+                                              height: 40,
+                                              fit: BoxFit.cover,
+                                              imageErrorBuilder:
+                                                  (_, __, ___) => Image.asset(
+                                                    'assets/images/fail.png',
+                                                    width: 40,
+                                                    height: 40,
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
-                                              Text(fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                              Text(
+                                                fullName,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
                                               const SizedBox(height: 2),
-                                              Text(_timeAgo(createdAt), style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                                              Text(
+                                                _timeAgo(createdAt),
+                                                style: TextStyle(
+                                                  color: Colors.grey[600],
+                                                  fontSize: 12,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),
                                       ],
                                     ),
+
                                     const SizedBox(height: 12),
-                                    Text(p.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                                    const SizedBox(height: 8),
-                                    if (p.imageUrls.isNotEmpty)
-                                      GestureDetector(
-                                        onTap: () {},
-                                        child: _ImageCarousel(imageUrls: p.imageUrls),
+                                    // ── Title ────────────────────────
+                                    Text(
+                                      p.title,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                    const SizedBox(height: 12),
+                                    ),
+                                    const SizedBox(height: 8),
+
+                                    // ── Like & Comment ───────────────
                                     StreamBuilder<DocumentSnapshot>(
-                                      stream: FirebaseFirestore.instance
-                                          .collection('topics')
-                                          .doc(widget.topic.id)
-                                          .collection('posts')
-                                          .doc(p.id)
-                                          .snapshots(),
-                                      builder: (ctx, snap) {
-                                        if (!snap.hasData) return const SizedBox();
-                                        final data = snap.data!.data() as Map<String, dynamic>;
-                                        final likeCount = (data['likeCount'] ?? 0) as int;
-                                        final commentCount = (data['commentCount'] ?? 0) as int;
-                                        final likedBy = List<String>.from(data['likedBy'] ?? <String>[]);
-                                        final uid = FirebaseAuth.instance.currentUser?.uid;
-                                        final isLiked = uid != null && likedBy.contains(uid);
+                                      stream:
+                                          FirebaseFirestore.instance
+                                              .collection('topics')
+                                              .doc(widget.topic.id)
+                                              .collection('posts')
+                                              .doc(p.id)
+                                              .snapshots(),
+                                      builder: (ctx3, snap3) {
+                                        if (!snap3.hasData) {
+                                          return const SizedBox();
+                                        }
+                                        final data =
+                                            snap3.data!.data()
+                                                as Map<String, dynamic>;
+                                        final likeCount =
+                                            (data['likeCount'] as int?) ?? 0;
+                                        final commentCount =
+                                            (data['commentCount'] as int?) ?? 0;
+                                        final likedBy = List<String>.from(
+                                          data['likedBy'] ?? [],
+                                        );
+                                        final uid =
+                                            FirebaseAuth
+                                                .instance
+                                                .currentUser
+                                                ?.uid;
+                                        final isLiked =
+                                            uid != null &&
+                                            likedBy.contains(uid);
 
                                         return Row(
-                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
                                           children: [
                                             OutlinedButton.icon(
                                               onPressed: () async {
+                                                final uid =
+                                                    FirebaseAuth
+                                                        .instance
+                                                        .currentUser
+                                                        ?.uid;
                                                 if (uid == null) return;
-                                                final ref = FirebaseFirestore.instance
-                                                    .collection('topics')
-                                                    .doc(widget.topic.id)
-                                                    .collection('posts')
-                                                    .doc(p.id);
-                                                await FirebaseFirestore.instance.runTransaction((transaction) async {
-                                                  final fresh = await transaction.get(ref);
-                                                  final data = fresh.data() as Map<String, dynamic>;
-                                                  final list = List<String>.from(data['likedBy'] ?? []);
-                                                  var count = (data['likeCount'] ?? 0) as int;
 
-                                                  if (list.contains(uid)) {
-                                                    list.remove(uid);
-                                                    count--;
-                                                  } else {
-                                                    list.add(uid);
-                                                    count++;
-                                                  }
-                                                  transaction.update(ref, {'likedBy': list, 'likeCount': count});
-                                                });
+                                                final postRef =
+                                                    FirebaseFirestore.instance
+                                                        .collection('topics')
+                                                        .doc(widget.topic.id)
+                                                        .collection('posts')
+                                                        .doc(p.id);
+
+                                                await FirebaseFirestore.instance
+                                                    .runTransaction((tx) async {
+                                                      final snapshot = await tx
+                                                          .get(postRef);
+                                                      final data =
+                                                          snapshot.data()
+                                                              as Map<
+                                                                String,
+                                                                dynamic
+                                                              >;
+                                                      final likedBy =
+                                                          List<String>.from(
+                                                            data['likedBy'] ??
+                                                                [],
+                                                          );
+                                                      int likeCount =
+                                                          (data['likeCount'] ??
+                                                                  0)
+                                                              as int;
+
+                                                      if (likedBy.contains(
+                                                        uid,
+                                                      )) {
+                                                        likedBy.remove(uid);
+                                                        likeCount =
+                                                            likeCount > 0
+                                                                ? likeCount - 1
+                                                                : 0;
+                                                      } else {
+                                                        likedBy.add(uid);
+                                                        likeCount += 1;
+                                                      }
+
+                                                      tx.update(postRef, {
+                                                        'likedBy': likedBy,
+                                                        'likeCount': likeCount,
+                                                      });
+                                                    });
                                               },
-                                              icon: Icon(isLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined),
-                                              label: Text('$likeCount'),
+                                              icon: Icon(
+                                                isLiked
+                                                    ? Icons.thumb_up
+                                                    : Icons
+                                                        .thumb_up_alt_outlined,
+                                                color: Colors.blue,
+                                              ),
+                                              label: Text(
+                                                '$likeCount',
+                                                style: const TextStyle(
+                                                  color: Colors.blue,
+                                                ),
+                                              ),
                                               style: OutlinedButton.styleFrom(
+                                                side: const BorderSide(
+                                                  color: Colors.blue,
+                                                ),
                                                 shape: const StadiumBorder(),
-                                                side: const BorderSide(color: Colors.grey),
                                               ),
                                             ),
                                             const SizedBox(width: 8),
                                             OutlinedButton.icon(
                                               onPressed: () {
-                                                Navigator.of(ctx).push(MaterialPageRoute(
-                                                  builder: (_) => PostDetailScreen(post: p),
-                                                ));
+                                                Navigator.of(ctx3).push(
+                                                  MaterialPageRoute(
+                                                    builder:
+                                                        (_) => PostDetailScreen(
+                                                          post: p,
+                                                        ),
+                                                  ),
+                                                );
                                               },
-                                              icon: const Icon(Icons.comment_outlined),
-                                              label: Text('$commentCount'),
+                                              icon: const Icon(
+                                                Icons.comment_outlined,
+                                                color: Colors.blue,
+                                              ),
+                                              label: Text(
+                                                '$commentCount',
+                                                style: const TextStyle(
+                                                  color: Colors.blue,
+                                                ),
+                                              ),
                                               style: OutlinedButton.styleFrom(
+                                                side: const BorderSide(
+                                                  color: Colors.blue,
+                                                ),
                                                 shape: const StadiumBorder(),
-                                                side: const BorderSide(color: Colors.grey),
                                               ),
                                             ),
                                           ],
@@ -286,12 +451,15 @@ class _PostListScreenState extends State<PostListScreen> {
           ),
         ],
       ),
+
       floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.add_comment),
-        onPressed: () => showDialog(
-          context: ctx,
-          builder: (_) => AddPostDialog(topicId: widget.topic.id),
-        ),
+        backgroundColor: Colors.white,
+        child: const Icon(Icons.add_comment, color: Colors.blue),
+        onPressed:
+            () => showDialog(
+              context: ctx,
+              builder: (_) => AddPostDialog(topicId: widget.topic.id),
+            ),
       ),
     );
   }
@@ -331,15 +499,16 @@ class __ImageCarouselState extends State<_ImageCarousel> {
             controller: _controller,
             itemCount: widget.imageUrls.length,
             onPageChanged: (idx) => setState(() => _current = idx),
-            itemBuilder: (_, idx) => ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                widget.imageUrls[idx],
-                width: double.infinity,
-                height: double.infinity,
-                fit: BoxFit.cover,
-              ),
-            ),
+            itemBuilder:
+                (_, idx) => ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    widget.imageUrls[idx],
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
           ),
           if (widget.imageUrls.length > 1)
             Positioned(

@@ -16,6 +16,7 @@ class TopicListScreen extends StatefulWidget {
 
 class _TopicListScreenState extends State<TopicListScreen> {
   final _searchController = TextEditingController();
+  String _searchInput = '';
   String _searchQuery = '';
 
   @override
@@ -24,16 +25,27 @@ class _TopicListScreenState extends State<TopicListScreen> {
     super.dispose();
   }
 
+  void _applySearch() {
+    setState(() {
+      _searchQuery = _searchInput.trim();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Collaborative forum'),
-        centerTitle: true,
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.grey[50],
         elevation: 1,
+        centerTitle: true,
         foregroundColor: Colors.black,
+        title: const Text(
+          'Collaborative forum',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
+
       body: Column(
         children: [
           // ── Search Bar ─────────────────────────────────────────
@@ -41,18 +53,33 @@ class _TopicListScreenState extends State<TopicListScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
               controller: _searchController,
+              cursorColor: Colors.blue,
+              textInputAction: TextInputAction.search,
+              onChanged: (val) => _searchInput = val,
+              onSubmitted: (_) => _applySearch(),
               decoration: InputDecoration(
                 hintText: 'Search topics…',
-                prefixIcon: const Icon(Icons.search),
                 filled: true,
-                fillColor: const Color(0xFFF7F7F7),
+                fillColor: Colors.white,
+                contentPadding:
+                const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.search, color: Colors.blue),
+                  onPressed: _applySearch,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: const BorderSide(color: Colors.blue, width: 2),
+                ),
               ),
-              onChanged: (val) => setState(() => _searchQuery = val.trim()),
             ),
           ),
 
@@ -72,8 +99,8 @@ class _TopicListScreenState extends State<TopicListScreen> {
                 final topics = _searchQuery.isEmpty
                     ? allTopics
                     : allTopics.where((t) =>
-                    t.title.toLowerCase().contains(_searchQuery.toLowerCase())
-                ).toList();
+                    t.title.toLowerCase().contains(_searchQuery.toLowerCase()))
+                    .toList();
 
                 if (topics.isEmpty) {
                   return const Center(
@@ -85,6 +112,7 @@ class _TopicListScreenState extends State<TopicListScreen> {
                 }
 
                 return ListView.builder(
+                  padding: const EdgeInsets.all(16),
                   itemCount: topics.length,
                   itemBuilder: (ctx, i) {
                     final t = topics[i];
@@ -111,13 +139,9 @@ class _TopicListScreenState extends State<TopicListScreen> {
                         ),
                       ),
                       title: Text(t.title),
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => PostListScreen(topic: t),
-                          ),
-                        );
-                      },
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => PostListScreen(topic: t)),
+                      ),
                     );
                   },
                 );
@@ -126,8 +150,10 @@ class _TopicListScreenState extends State<TopicListScreen> {
           ),
         ],
       ),
+
       floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.add),
+        backgroundColor: Colors.white,
+        child: const Icon(Icons.add, color: Colors.blue),
         onPressed: () => showDialog(
           context: context,
           builder: (_) => const AddTopicDialog(),
