@@ -35,6 +35,9 @@ dependencies:
   cloud_firestore: ^4.16.2
   google_fonts: ^6.2.1
   firebase_storage: ^11.1.0
+  video_player: ^2.6.0
+  youtube_player_flutter: ^8.1.0
+  flutter_html: ^2.2.1
 
 
   # The following adds the Cupertino Icons font to your application.

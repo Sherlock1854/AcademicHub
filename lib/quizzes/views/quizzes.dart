@@ -2,24 +2,22 @@ import 'package:flutter/material.dart';
 
 class Quizzes extends StatelessWidget {
   final String quizTitle;
-  final String description;
-  final String authorName;
-  final String category;
+  final String description;  // optional for now
+  final String category;     // optional for now
   final String imageUrl;
 
   const Quizzes({
-    super.key,
+    Key? key,
     required this.quizTitle,
-    required this.description,
-    required this.authorName,
-    required this.category,
+    this.description = '',
+    this.category = '',
     required this.imageUrl,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    const double cardWidth = 200.0;
-    const double cardHeight = 220.0;
+    const cardWidth = 200.0;
+    const cardHeight = 220.0;
 
     return Card(
       margin: const EdgeInsets.only(right: 16.0),
@@ -27,7 +25,6 @@ class Quizzes extends StatelessWidget {
         borderRadius: BorderRadius.circular(12.0),
         side: BorderSide(color: Colors.blue.shade100, width: 1.5),
       ),
-      elevation: 0,
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
         width: cardWidth,
@@ -35,37 +32,32 @@ class Quizzes extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // TOP IMAGE (60%)
+            // COVER IMAGE (60%)
             SizedBox(
               height: cardHeight * 0.6,
               width: double.infinity,
               child: Image.network(
                 imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[300],
-                    child: Center(
-                      child: Icon(Icons.image, color: Colors.grey[600]),
-                    ),
-                  );
-                },
+                errorBuilder: (_, __, ___) => Container(
+                  color: Colors.grey[300],
+                  child: const Center(child: Icon(Icons.broken_image)),
+                ),
               ),
             ),
 
-            // BOTTOM TEXT SECTION (40%)
+            // TEXT (40%)
             Container(
               color: Colors.grey[50],
-              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
               height: cardHeight * 0.4,
-              child: SingleChildScrollView(
-                physics: const NeverScrollableScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Author and Category
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (category.isNotEmpty) ...[
                     Text(
-                      '$authorName · $category',
+                      category,
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 12,
@@ -75,21 +67,19 @@ class Quizzes extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
-
-                    // Quiz Title
-                    Text(
-                      quizTitle,
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  ],
+                  Text(
+                    quizTitle,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(height: 2),
-
-                    // DESCRIPTION
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  if (description.isNotEmpty)
                     Text(
                       description,
                       style: TextStyle(
@@ -99,8 +89,7 @@ class Quizzes extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                ),
+                ],
               ),
             ),
           ],

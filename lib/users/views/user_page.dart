@@ -49,6 +49,9 @@ class _UserSettingsPageState extends State<UserSettingsPage> {
         ? '${role[0].toUpperCase()}${role.substring(1)}'
         : null;
 
+    // Determine if this user should see the admin nav
+    final isAdmin = role == 'admin' || role == 'co-admin';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Account Settings'),
@@ -113,7 +116,7 @@ class _UserSettingsPageState extends State<UserSettingsPage> {
                         'About Me',
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.w600, // semi-bold
+                          fontWeight: FontWeight.w600,
                           color: Colors.grey[800],
                         ),
                       ),
@@ -157,7 +160,12 @@ class _UserSettingsPageState extends State<UserSettingsPage> {
           ],
         ),
       ),
-      bottomNavigationBar: const AppNavigationBar(selectedIndex: 4),
+
+      // ← Correct tab index and dynamic admin flag
+      bottomNavigationBar: AppNavigationBar(
+        selectedIndex: 4,
+        isAdmin: isAdmin,
+      ),
     );
   }
 }

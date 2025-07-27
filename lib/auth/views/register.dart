@@ -3,6 +3,7 @@ import 'package:academichub/auth/views/login.dart';
 import 'package:flutter/material.dart';
 import 'package:academichub/utilities/design.dart';
 import 'package:academichub/dashboard/views/dashboard_page.dart';
+import 'package:academichub/course/views/course_category_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -38,7 +39,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const DashboardPage()),
+        MaterialPageRoute(builder: (_) => const CourseCategoryPage()),
       );
     } catch (e) {
       if (!mounted) return;

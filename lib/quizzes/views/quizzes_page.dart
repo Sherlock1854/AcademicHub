@@ -1,271 +1,90 @@
+// lib/quizzes/views/quizzes_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:academichub/bottom_nav.dart';
-import 'package:academichub/quizzes/models/quizzes.dart';
+import '../models/quiz.dart';
+import '../services/quiz_service.dart';
+import 'quiz_attempt_page.dart';
 
 class QuizzesPageScreen extends StatefulWidget {
-  const QuizzesPageScreen({super.key});
+  const QuizzesPageScreen({Key? key}) : super(key: key);
 
   @override
   State<QuizzesPageScreen> createState() => _QuizzesPageScreenState();
 }
 
 class _QuizzesPageScreenState extends State<QuizzesPageScreen> {
-  final TextEditingController _searchController = TextEditingController();
-
-  final List<String> categories = [
-    'Science', 'Math', 'History', 'Literature', 'Arts', 'Technology'
-  ];
-
-  int _selectedCategoryIndex = 0;
-
-  final Map<String, List<Map<String, dynamic>>> categorizedQuizzes = {
-    'Science': [
-      {
-        'title': 'Astrophysics 101',
-        'subtitle': 'Explore the wonders of the universe.',
-        'author': 'Dr. Celeste Nova',
-        'category': 'Science',
-        'imageUrl': 'https://via.placeholder.com/400x200.png?text=Astrophysics+Quiz',
-      },
-      {
-        'title': 'Genetics & Evolution',
-        'subtitle': 'Dive into the world of biology.',
-        'author': 'Prof. Gene Splice',
-        'category': 'Biology',
-        'imageUrl': 'https://via.placeholder.com/400x200.png?text=Genetics+Quiz',
-      },
-      {
-        'title': 'Quantum Physics Basics',
-        'subtitle': 'The fundamental laws of the universe.',
-        'author': 'Dr. Particle X',
-        'category': 'Physics',
-        'imageUrl': 'https://via.placeholder.com/400x200.png?text=Quantum+Quiz',
-      },
-    ],
-    'Math': [
-      {
-        'title': 'Calculus Mastery',
-        'subtitle': 'Test your calculus knowledge.',
-        'author': 'Dr. Isaac Newton',
-        'category': 'Math',
-        'imageUrl': 'https://via.placeholder.com/400x200.png?text=Calculus+Quiz',
-      },
-      {
-        'title': 'Algebra Challenge',
-        'subtitle': 'Strengthen your algebra skills.',
-        'author': 'Prof. Al Gebra',
-        'category': 'Math',
-        'imageUrl': 'https://via.placeholder.com/400x200.png?text=Algebra+Quiz',
-      },
-      {
-        'title': 'Linear Algebra Basics',
-        'subtitle': 'Matrices and vectors quiz.',
-        'author': 'Dr. Vector Space',
-        'category': 'Math',
-        'imageUrl': 'https://via.placeholder.com/400x200.png?text=Linear+Algebra+Quiz',
-      },
-    ],
-    'History': [
-      {
-        'title': 'World War II Quiz',
-        'subtitle': 'Test your knowledge of global conflicts.',
-        'author': 'Dr. Historical Figure',
-        'category': 'History',
-        'imageUrl': 'https://via.placeholder.com/400x200.png?text=WWII+Quiz',
-      },
-      {
-        'title': 'Ancient Civilizations',
-        'subtitle': 'Quiz on past empires and cultures.',
-        'author': 'Prof. Indiana Jones',
-        'category': 'History',
-        'imageUrl': 'https://via.placeholder.com/400x200.png?text=Ancient+Quiz',
-      },
-    ],
-  };
+  late Future<List<Quiz>> _quizzesFut;
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _quizzesFut = QuizService.instance.fetchQuizzes();
   }
 
   @override
   Widget build(BuildContext context) {
-    final double topIconsHeight = kToolbarHeight;
-    final double searchBarHeight = 56.0;
-    final double verticalPadding = 16.0;
-    final double appBarTotalHeight = topIconsHeight + searchBarHeight + verticalPadding;
-
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(appBarTotalHeight),
-        child: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          flexibleSpace: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Align(
-                    alignment: Alignment.topRight,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.notifications_outlined, color: Colors.black54),
-                          onPressed: () {
-                            debugPrint('Notifications tapped');
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.chat_bubble_outline, color: Colors.black54),
-                          onPressed: () {
-                            debugPrint('Chat tapped');
-                          },
-                        ),
-                      ],
+      appBar: AppBar(title: const Text('Available Quizzes')),
+      bottomNavigationBar:
+      const AppNavigationBar(selectedIndex: 2, isAdmin: false),
+      body: FutureBuilder<List<Quiz>>(
+        future: _quizzesFut,
+        builder: (ctx, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final quizzes = snap.data ?? [];
+          if (quizzes.isEmpty) {
+            return const Center(child: Text('No quizzes available.'));
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            itemCount: quizzes.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (ctx, i) {
+              final q = quizzes[i];
+              return Card(
+                margin: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: ListTile(
+                  dense: true,
+                  contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Image.network(
+                      q.coverUrl ??
+                          'https://via.placeholder.com/80x80.png?text=No+Image',
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          Container(color: Colors.grey[300], width: 56, height: 56),
                     ),
                   ),
-                  SizedBox(
-                    height: searchBarHeight,
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search quizzes...',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {});
-                          },
-                        )
-                            : null,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.0),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey[200],
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16),
-                      ),
-                      onChanged: (value) {
-                        setState(() {});
-                      },
-                    ),
+                  title: Text(
+                    q.title,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600),
                   ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Category Filters
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-              child: SizedBox(
-                height: 40,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: categories.length,
-                  itemBuilder: (context, index) {
-                    final isSelected = index == _selectedCategoryIndex;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ChoiceChip(
-                        label: Text(categories[index]),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedCategoryIndex = index;
-                          });
-                        },
-                        selectedColor: Colors.blue.shade100,
-                        backgroundColor: Colors.grey.shade200,
-                        labelStyle: TextStyle(
-                          color: isSelected ? Colors.blue.shade700 : Colors.black87,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                        side: BorderSide.none,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => QuizAttemptPage(quizId: q.id),
                       ),
                     );
                   },
                 ),
-              ),
-            ),
-
-            // Quiz Categories
-            ...categorizedQuizzes.keys.map((categoryName) {
-              final quizzesInSection = categorizedQuizzes[categoryName]!;
-
-              if (quizzesInSection.isEmpty) {
-                return const SizedBox.shrink();
-              }
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '$categoryName Quizzes',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            debugPrint('See All $categoryName Quizzes tapped');
-                          },
-                          child: const Text(
-                            'See All',
-                            style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    height: 250,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      itemCount: quizzesInSection.length,
-                      itemBuilder: (context, index) {
-                        final quiz = quizzesInSection[index];
-
-                        return Quizzes(
-                          quizTitle: quiz['title'] ?? 'Untitled',
-                          description: quiz['subtitle'] ?? '',
-                          authorName: quiz['author'] ?? 'Unknown',
-                          category: quiz['category'] ?? '',
-                          imageUrl: quiz['imageUrl'] ?? 'https://via.placeholder.com/400x200.png?text=Quiz+Image',
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
               );
-            }).toList(),
-          ],
-        ),
+            },
+          );
+        },
       ),
-      bottomNavigationBar: const AppNavigationBar(selectedIndex: 2),
     );
   }
 }
