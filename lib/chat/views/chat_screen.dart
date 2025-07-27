@@ -48,12 +48,18 @@ class _ChatScreenState extends State<ChatScreen> {
             ? _botService.messagesStream()
             : _chatService.messagesStream(widget.friend.id);
 
-    _messages$.listen((_) => _scrollToBottom());
+    _messages$.listen((msgs) {
+      _scrollToBottom();
+      if (!_isBotChat) {
+        _chatService.markMessagesAsSeen(widget.friend.id);
+      }
+    });
 
     // if peer chat, mark incoming as seen and flip sender copy
     if (!_isBotChat) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _chatService.markMessagesAsSeen(widget.friend.id);
+        FriendService().markRead(widget.friend.id);
       });
     }
   }
@@ -234,44 +240,61 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _handleMenuSelection(String value) async {
     final friendService = FriendService();
+    final friendName = widget.friend.name;
     if (value == 'pin') {
       final current = widget.friend.pinned;
       await friendService.pinFriend(widget.friend.id, !current);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(current ? 'Unpinned' : 'Pinned')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(current ? 'Unpinned $friendName' : 'Pinned $friendName'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } else if (value == 'delete') {
       final confirm = await showDialog<bool>(
         context: context,
-        builder:
-            (_) => AlertDialog(
-              title: const Text('Delete Friend'),
-              content: const Text(
-                'Are you sure you want to delete this friend and all messages?',
+        builder: (_) => AlertDialog(
+          backgroundColor: Colors.white, // white dialog background
+          title: const Text('Delete Friend?'),
+          content: Text(
+            'Are you sure you want to delete $friendName and all messages?',
+          ),
+          actions: [
+            // Cancel button
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.blue,               // text color
+                side: const BorderSide(color: Colors.blue), // border
+                backgroundColor: Colors.white,              // background
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text(
-                    'Delete',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                ),
-              ],
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
             ),
+            // Delete button
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,                // text color
+                side: const BorderSide(color: Colors.red),  // border
+                backgroundColor: Colors.red, // light-red bg
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
       );
+
       if (confirm == true) {
         await friendService.deleteFriend(widget.friend.id);
         if (!mounted) return;
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Friend deleted')));
+        Navigator.of(context).pop(); // go back from chat screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Friend deleted'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     }
   }
@@ -360,41 +383,78 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showMessageOptions(BuildContext ctx, ChatMessage msg) {
     showModalBottomSheet(
       context: ctx,
-      builder:
-          (_) => SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: Icon(
-                    msg.imageUrl != null ? Icons.image : Icons.edit,
-                  ),
-                  title: Text(
-                    msg.imageUrl != null ? 'Edit Image' : 'Edit Text',
-                  ),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    if (msg.imageUrl != null) {
-                      _editImage(ctx, msg);
-                    } else {
-                      _editMessage(ctx, msg);
-                    }
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.delete),
-                  title: const Text('Delete'),
-                  onTap: () async {
-                    Navigator.pop(ctx);
-                    await _chatService.deleteMessage(
-                      friendId: widget.friend.id,
-                      messageId: msg.id,
-                    );
-                  },
-                ),
-              ],
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(msg.imageUrl != null ? Icons.image : Icons.edit),
+              title: Text(msg.imageUrl != null ? 'Edit Image' : 'Edit Text'),
+              onTap: () {
+                Navigator.pop(ctx);
+                if (msg.imageUrl != null) {
+                  _editImage(ctx, msg);
+                } else {
+                  _editMessage(ctx, msg);
+                }
+              },
             ),
-          ),
+            ListTile(
+              leading: const Icon(Icons.delete),
+              title: const Text('Delete'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                // show our custom confirmation dialog
+                final confirm = await showDialog<bool>(
+                  context: ctx,
+                  barrierDismissible: false,
+                  builder: (dialogCtx) => AlertDialog(
+                    backgroundColor: Colors.white,
+                    title: const Text('Delete message?'),
+                    content: const Text('This cannot be undone.'),
+                    actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    actions: [
+                      // Cancel
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.blue,
+                          side: const BorderSide(color: Colors.blue),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(dialogCtx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      // Delete
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.red),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(dialogCtx, true),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  await _chatService.deleteMessage(
+                    friendId: widget.friend.id,
+                    messageId: msg.id,
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 

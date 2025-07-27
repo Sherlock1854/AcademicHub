@@ -140,20 +140,60 @@ class FriendListItem extends StatelessWidget {
                             ? 'Unpinned ${friend.name}'
                             : 'Pinned ${friend.name}',
                       ),
+                      backgroundColor: Colors.green,
                     ),
                   );
                 },
               ),
+
               ListTile(
                 leading: const Icon(Icons.delete),
                 title: const Text('Delete Friend'),
-                onTap: () async {
-                  Navigator.of(context).pop();
-                  await svc.deleteFriend(friend.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content:
-                      Text('Deleted ${friend.name} & chat history'),
+                onTap: () {
+                  Navigator.of(context).pop(); // close bottom sheet
+
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: Colors.white,  // ensure white bg
+                      title: const Text('Delete Friend?'),
+                      content: Text(
+                        'Are you sure you want to delete ${friend.name} '
+                            'and all chat history?',
+                      ),
+                      actions: [
+                        // Cancel button
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.blue,               // text
+                            side: const BorderSide(color: Colors.blue), // border
+                            backgroundColor: Colors.white,              // bg
+                          ),
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text('Cancel'),
+                        ),
+
+                        // Delete button
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.white,                // text
+                            side: const BorderSide(color: Colors.red),  // border
+                            backgroundColor: Colors.red, // light-red bg
+                          ),
+                          onPressed: () async {
+                            Navigator.of(ctx).pop(); // close dialog
+                            await svc.deleteFriend(friend.id);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Deleted ${friend.name} & chat history'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          },
+                          child: const Text('Delete'),
+                        ),
+                      ],
                     ),
                   );
                 },

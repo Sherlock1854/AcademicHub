@@ -161,34 +161,94 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final save = await showDialog<bool>(
       context: context,
       builder:
-          (ctx) => StatefulBuilder(
-            builder:
-                (ctx2, setState2) => AlertDialog(
-                  insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-                  title: const Text('Edit Post'),
-                  content: SizedBox(
-                    width: double.maxFinite,
+          (ctx) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 32,
+              vertical: 24,
+            ),
+            backgroundColor: Colors.white,
+            child: StatefulBuilder(
+              builder:
+                  (ctx2, setState2) => ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(ctx2).size.height * 0.8,
+                    ),
                     child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          TextField(
-                            controller: titleCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Title',
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: bodyCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Body',
+                          const Text(
+                            'Edit Post',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(height: 16),
-                          TextButton.icon(
-                            icon: const Icon(Icons.add_photo_alternate),
-                            label: const Text('Add Image'),
+
+                          // Title field
+                          TextField(
+                            controller: titleCtrl,
+                            decoration: InputDecoration(
+                              hintText: 'Title',
+                              filled: true,
+                              fillColor: Colors.white,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: Colors.grey.shade300,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Colors.blue,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Body field
+                          TextField(
+                            controller: bodyCtrl,
+                            maxLines: null,
+                            decoration: InputDecoration(
+                              hintText: 'Body',
+                              filled: true,
+                              fillColor: Colors.white,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: Colors.grey.shade300,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Colors.blue,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Add Image button
+                          OutlinedButton.icon(
                             onPressed: () async {
                               final picked = await ImagePicker().pickImage(
                                 source: ImageSource.gallery,
@@ -197,7 +257,23 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                 setState2(() => added.add(File(picked.path)));
                               }
                             },
+                            icon: const Icon(
+                              Icons.add_photo_alternate,
+                              color: Colors.blue,
+                            ),
+                            label: const Text(
+                              'Add Image',
+                              style: TextStyle(color: Colors.blue),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Colors.blue),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
                           ),
+
+                          // — if you have existing images or newly added ones, show previews here —
                           if (keepUrls.isNotEmpty || added.isNotEmpty) ...[
                             const SizedBox(height: 12),
                             SizedBox(
@@ -233,11 +309,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                                   removed.add(url);
                                                 }),
                                             child: Container(
+                                              padding: const EdgeInsets.all(2),
                                               decoration: BoxDecoration(
                                                 color: Colors.black54,
                                                 shape: BoxShape.circle,
                                               ),
-                                              padding: const EdgeInsets.all(2),
                                               child: const Icon(
                                                 Icons.close,
                                                 size: 14,
@@ -266,17 +342,17 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                         right: 2,
                                         child: GestureDetector(
                                           onTap:
-                                              () => setState2(() {
-                                                added.removeAt(
+                                              () => setState2(
+                                                () => added.removeAt(
                                                   i - keepUrls.length,
-                                                );
-                                              }),
+                                                ),
+                                              ),
                                           child: Container(
+                                            padding: const EdgeInsets.all(2),
                                             decoration: BoxDecoration(
                                               color: Colors.black54,
                                               shape: BoxShape.circle,
                                             ),
-                                            padding: const EdgeInsets.all(2),
                                             child: const Icon(
                                               Icons.close,
                                               size: 14,
@@ -291,23 +367,51 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               ),
                             ),
                           ],
+
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              // Cancel
+                              OutlinedButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Colors.blue),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Cancel',
+                                  style: TextStyle(color: Colors.blue),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              // Save
+                              OutlinedButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Colors.blue),
+                                  backgroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Save',
+                                  style: TextStyle(color: Colors.blue),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
                   ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Save'),
-                    ),
-                  ],
-                ),
+            ),
           ),
     );
+
     if (save != true) return;
 
     // upload new files
@@ -346,54 +450,131 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Future<void> _confirmDeletePost() async {
     final ok = await showDialog<bool>(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Delete post?'),
-            content: const Text(
-              'This will delete the post and all its comments.',
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,            // white dialog
+        title: const Text('Delete post?'),
+        content: const Text(
+          'This will delete the post and all its comments.',
+        ),
+        actions: [
+          // Cancel button: white bg, blue text & border
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.blue,
+              side: const BorderSide(color: Colors.blue),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Delete'),
-              ),
-            ],
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
           ),
+
+          // Delete button: red bg, white text & red border
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.red),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
+
     if (ok == true) {
       await _forumService.deletePost(
         topicId: widget.post.topicId,
         postId: widget.post.id,
       );
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(); // go back
     }
   }
 
   Future<void> _showEditCommentDialog(Comment c) async {
     final ctrl = TextEditingController(text: c.text);
+
     final save = await showDialog<bool>(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Edit Comment'),
-            content: TextField(controller: ctrl, maxLines: 3),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Edit Comment',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Save'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: ctrl,
+                maxLines: null,
+                decoration: InputDecoration(
+                  hintText: 'Type your comment',
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.blue, width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  // Cancel
+                  OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.blue,
+                      side: const BorderSide(color: Colors.blue),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 12),
+                  // Save
+                  OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.blue,
+                      side: const BorderSide(color: Colors.blue),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: const Text('Save'),
+                  ),
+                ],
               ),
             ],
           ),
+        ),
+      ),
     );
-    if (save == true) {
+
+    if (save == true && ctrl.text.trim().isNotEmpty) {
       await _commentsRef.doc(c.id).update({
         'text': ctrl.text.trim(),
         'editedAt': FieldValue.serverTimestamp(),
@@ -404,22 +585,59 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Future<void> _confirmDeleteComment(String commentId) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Delete comment?'),
-            content: const Text('This cannot be undone.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+
+        // 1) Push the title up
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+        title: const Text(
+          'Delete comment?',
+          textAlign: TextAlign.left,           // left-align the title
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+
+        // 2) Push the content right under the title
+        contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+        content: const Text(
+          'This cannot be undone.',
+          textAlign: TextAlign.left,           // left-align the body text
+        ),
+
+        // 3) Some breathing room before the buttons
+        actionsPadding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+
+        actions: [
+          // Cancel
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.blue,
+              side: const BorderSide(color: Colors.blue),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Delete'),
-              ),
-            ],
+            ),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
           ),
+
+          // Delete
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.red),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
+
     if (ok == true) {
       await _commentsRef.doc(commentId).delete();
       await _postRef.update({'commentCount': FieldValue.increment(-1)});

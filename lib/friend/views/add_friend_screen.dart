@@ -110,7 +110,10 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
     } catch (e) {
       debugPrint('Search error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Search failed: $e')),
+        SnackBar(
+          content: Text('Search failed: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       setState(() => _isSearching = false);
@@ -138,7 +141,10 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Request sent to ${user.name}')),
+      SnackBar(
+        content: Text('Request sent to ${user.name}'),
+        backgroundColor: Colors.green,
+      ),
     );
   }
 
@@ -255,6 +261,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                     }
 
                     return ListTile(
+                      key: ValueKey(user.id),
                       contentPadding: EdgeInsets.zero,
                       leading: CircleAvatar(
                         radius: 24,

@@ -51,22 +51,26 @@ class CommentService {
       'timestamp': FieldValue.serverTimestamp(),
     });
 
-    // 2) Bump the post's commentCount
+    // 2) Increment commentCount
     await postRef.update({'commentCount': FieldValue.increment(1)});
 
+    // 3) Fetch the post’s author
     final postSnap = await postRef.get();
-    if (postSnap.exists) {
-      final data = postSnap.data()!;
-      final targetUid = data['author'] as String?;
-      if (targetUid != null && targetUid != authorId) {
-        await _sendPush.call({
-          'targetUserId': targetUid,
-          'title': 'New Comment',
-          'body': text.length > 50 ? text.substring(0, 47) + '…' : text,
-        });
-      }
+    if (!postSnap.exists) return;
+    final postAuthor = postSnap.get('author') as String?;
+
+    // 4) Only notify if commenter ≠ post’s author
+    if (postAuthor != null && postAuthor != authorId) {
+      final body = text.length > 50 ? '${text.substring(0,47)}…' : text;
+      await _sendPush.call({
+        'targetUserId': postAuthor,
+        'title': 'New Comment',
+        'body': body,
+      });
     }
   }
+
+
 
   /// Deletes a comment and decrements the post's commentCount.
   Future<void> deleteComment({

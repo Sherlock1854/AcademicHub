@@ -8,6 +8,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../models/chat_message.dart';
+import '../../utilities/active_chat.dart';
 
 class ChatService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -26,11 +27,10 @@ class ChatService {
     final meSnap = await _db.collection('Users').doc(_myUid).get();
     final data = meSnap.data()!;
     final first = data['firstName'] as String? ?? '';
-    final last  = data['surname']   as String? ?? '';
+    final last = data['surname'] as String? ?? '';
     _cachedMyName = '$first $last'.trim();
     return _cachedMyName!;
   }
-
 
   /// Stream of messages exchanged with [friendId], oldest first.
   Stream<List<ChatMessage>> messagesStream(String friendId) {
@@ -143,16 +143,19 @@ class ChatService {
     // 3) Send a push ONLY to the one recipient, with your name in the body
     final myName = await _fetchMyName();
 
-// This will check if `text` is non-null AND non-empty; otherwise it falls back.
-    final body = (text?.isNotEmpty ?? false)
-        ? '$myName: $text'
-        : '$myName sent an image';
+    // This will check if `text` is non-null AND non-empty; otherwise it falls back.
+    final body =
+        (text?.isNotEmpty ?? false)
+            ? '$myName: $text'
+            : '$myName sent an image';
 
-    await _sendPush.call({
-      'targetUserId': friendId,
-      'title': 'New message',
-      'body': body,
-    });
+    if (activeChatFriendId != friendId) {
+      await _sendPush.call({
+        'targetUserId': friendId,
+        'title': 'New message',
+        'body': body,
+      });
+    }
   }
 
   /// When *this* user views the chat, mark all incoming as seen

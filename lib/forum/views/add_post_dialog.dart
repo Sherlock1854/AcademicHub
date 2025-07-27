@@ -43,7 +43,7 @@ class _AddPostDialogState extends State<AddPostDialog> {
 
   bool get _canSubmit =>
       _titleCtrl.text.trim().isNotEmpty &&
-          (_bodyCtrl.text.trim().isNotEmpty || _images.isNotEmpty);
+      (_bodyCtrl.text.trim().isNotEmpty || _images.isNotEmpty);
 
   void _validate() => setState(() => _errorText = null);
 
@@ -60,8 +60,9 @@ class _AddPostDialogState extends State<AddPostDialog> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Failed to pick images: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to pick images: $e')));
     }
   }
 
@@ -97,9 +98,10 @@ class _AddPostDialogState extends State<AddPostDialog> {
     });
 
     try {
-      final imageUrls = await (_images.isNotEmpty
-          ? _uploadAllImages()
-          : Future.value(<String>[]));
+      final imageUrls =
+          await (_images.isNotEmpty
+              ? _uploadAllImages()
+              : Future.value(<String>[]));
       await ForumService().addPost(
         topicId: widget.topicId,
         author: user.uid,
@@ -111,8 +113,9 @@ class _AddPostDialogState extends State<AddPostDialog> {
       Navigator.of(context).pop();
     } catch (e) {
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Failed to add post: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to add post: $e')));
     }
   }
 
@@ -154,16 +157,20 @@ class _AddPostDialogState extends State<AddPostDialog> {
                     filled: true,
                     fillColor: Colors.white,
                     counterText: null,
-                    contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: Colors.grey.shade300),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                      const BorderSide(color: Colors.blue, width: 2),
+                      borderSide: const BorderSide(
+                        color: Colors.blue,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -180,16 +187,20 @@ class _AddPostDialogState extends State<AddPostDialog> {
                     hintText: 'Body',
                     filled: true,
                     fillColor: Colors.white,
-                    contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: Colors.grey.shade300),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                      const BorderSide(color: Colors.blue, width: 2),
+                      borderSide: const BorderSide(
+                        color: Colors.blue,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -199,12 +210,15 @@ class _AddPostDialogState extends State<AddPostDialog> {
                 OutlinedButton.icon(
                   onPressed: _loading ? null : _pickImages,
                   icon: const Icon(Icons.image, color: Colors.blue),
-                  label:
-                  const Text('Add Images', style: TextStyle(color: Colors.blue)),
+                  label: const Text(
+                    'Add Images',
+                    style: TextStyle(color: Colors.blue),
+                  ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.blue),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20)),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -217,35 +231,40 @@ class _AddPostDialogState extends State<AddPostDialog> {
                       scrollDirection: Axis.horizontal,
                       itemCount: _images.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 8),
-                      itemBuilder: (_, i) => Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              File(_images[i].path),
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          Positioned(
-                            top: 2,
-                            right: 2,
-                            child: GestureDetector(
-                              onTap: () => setState(() => _images.removeAt(i)),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.black54,
-                                  shape: BoxShape.circle,
+                      itemBuilder:
+                          (_, i) => Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  File(_images[i].path),
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
                                 ),
-                                padding: const EdgeInsets.all(2),
-                                child: const Icon(Icons.close,
-                                    size: 14, color: Colors.white),
                               ),
-                            ),
+                              Positioned(
+                                top: 2,
+                                right: 2,
+                                child: GestureDetector(
+                                  onTap:
+                                      () => setState(() => _images.removeAt(i)),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.black54,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    padding: const EdgeInsets.all(2),
+                                    child: const Icon(
+                                      Icons.close,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -254,14 +273,21 @@ class _AddPostDialogState extends State<AddPostDialog> {
                 // Inline error
                 if (_errorText != null) ...[
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 12,
+                    ),
+                    margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade100,
+                      color: Colors.red,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(_errorText!, style: const TextStyle(color: Colors.red)),
+                    child: Text(
+                      _errorText!,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    ),
                   ),
-                  const SizedBox(height: 12),
                 ],
 
                 // Buttons
@@ -269,35 +295,43 @@ class _AddPostDialogState extends State<AddPostDialog> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     OutlinedButton(
-                      onPressed: _loading ? null : () => Navigator.of(context).pop(),
+                      onPressed:
+                          _loading ? null : () => Navigator.of(context).pop(),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.blue),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20)),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                       ),
-                      child:
-                      const Text('Cancel', style: TextStyle(color: Colors.blue)),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(color: Colors.blue),
+                      ),
                     ),
                     const SizedBox(width: 12),
                     OutlinedButton(
-                      onPressed: _loading || !_canSubmit ? null : _submit,
+                      onPressed: _loading ? null : _submit,
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.blue),
                         backgroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20)),
-                      ),
-                      child: _loading
-                          ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.blue,
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                      )
-                          : const Text('Post',
-                          style: TextStyle(color: Colors.blue)),
+                      ),
+                      child:
+                          _loading
+                              ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.blue,
+                                ),
+                              )
+                              : const Text(
+                                'Post',
+                                style: TextStyle(color: Colors.blue),
+                              ),
                     ),
                   ],
                 ),

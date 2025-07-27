@@ -17,6 +17,8 @@ class FriendRequestItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final service = FriendRequestService();
     final timeLabel = DateFormat('MMM d').format(request.created);
+    final displayName = isSent ? request.toName : request.fromName;
+    final displayImage = request.imageUrl;
 
     return Card(
       color: Colors.white,
@@ -36,16 +38,17 @@ class FriendRequestItem extends StatelessWidget {
                   child: ClipOval(
                     child: FadeInImage.assetNetwork(
                       placeholder: 'assets/images/fail.png',
-                      image: request.imageUrl,
+                      image: displayImage,
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,
-                      imageErrorBuilder: (_, __, ___) => Image.asset(
-                        'assets/images/fail.png',
-                        width: 48,
-                        height: 48,
-                        fit: BoxFit.cover,
-                      ),
+                      imageErrorBuilder:
+                          (_, __, ___) => Image.asset(
+                            'assets/images/fail.png',
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                          ),
                     ),
                   ),
                 ),
@@ -55,9 +58,11 @@ class FriendRequestItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        request.fromName,
+                        displayName,
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -72,84 +77,100 @@ class FriendRequestItem extends StatelessWidget {
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerRight,
-              child: isSent
-                  ? OutlinedButton(
-                onPressed: request.status == 'pending'
-                    ? () async {
-                  await service.cancelRequest(request.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text(
-                            'Cancelled request to ${request.toName}')),
-                  );
-                }
-                    : null,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(80, 36),
-                  backgroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.blue),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.blue),
-                ),
-              )
-                  : Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  OutlinedButton(
-                    onPressed: request.status == 'pending'
-                        ? () async {
-                      await service.declineRequest(request.id);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(
-                                'Declined request from ${request.fromName}')),
-                      );
-                    }
-                        : null,
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(80, 36),
-                      backgroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.blue),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+              child:
+                  isSent
+                      ? OutlinedButton(
+                        onPressed:
+                            request.status == 'pending'
+                                ? () async {
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  await service.cancelRequest(request.id);
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Cancelled request to $displayName',
+                                      ),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                                : null,
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(80, 36),
+                          backgroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.blue),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(color: Colors.blue),
+                        ),
+                      )
+                      : Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed:
+                                request.status == 'pending'
+                                    ? () async {
+                                      final messenger = ScaffoldMessenger.of(context);
+                                      await service.declineRequest(request.id);
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Declined request from $displayName',
+                                          ),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
+                                    : null,
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(80, 36),
+                              backgroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.blue),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: const Text(
+                              'Decline',
+                              style: TextStyle(color: Colors.blue),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed:
+                                request.status == 'pending'
+                                    ? () async {
+                                      final messenger = ScaffoldMessenger.of(context);
+                                      await service.acceptRequest(request);
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Accepted request from $displayName',
+                                          ),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
+                                    : null,
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size(80, 36),
+                              backgroundColor: Colors.blue,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: const Text(
+                              'Accept',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    child: const Text(
-                      'Decline',
-                      style: TextStyle(color: Colors.blue),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: request.status == 'pending'
-                        ? () async {
-                      await service.acceptRequest(request);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(
-                                'Accepted request from ${request.fromName}')),
-                      );
-                    }
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(80, 36),
-                      backgroundColor: Colors.blue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: const Text(
-                      'Accept',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
