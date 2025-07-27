@@ -108,7 +108,7 @@ class _LoginPageState extends State<LoginPage> {
                   decoration: BoxDecoration(shape: BoxShape.circle, boxShadow: [
                     BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: Offset(0,5))
                   ]),
-                  child: ClipOval(child: Image.asset('assets/images/login.png', fit: BoxFit.cover)),
+                  child: ClipOval(child: Image.asset('assets/images/logo.png', fit: BoxFit.cover)),
                 ),
                 const SizedBox(height: 40),
                 const Text('Sign In', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
@@ -149,6 +149,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 30),
+                // <-- Updated Sign In button with white text:
                 SizedBox(
                   width: double.infinity, height: 50,
                   child: ElevatedButton(
@@ -158,7 +159,14 @@ class _LoginPageState extends State<LoginPage> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       elevation: 0,
                     ),
-                    child: const Text('Sign In', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Sign In',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white, // set text color to white
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 15),

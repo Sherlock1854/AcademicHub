@@ -82,9 +82,8 @@ flutter:
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
   assets:
-    - assets/images/login.png
-    - assets/images/register.png
     - assets/images/robot.png
+    - assets/images/logo.png
     - assets/images/placeholder.png
     - assets/images/fail.png
 

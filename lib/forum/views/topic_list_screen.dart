@@ -161,7 +161,7 @@ class _TopicListScreenState extends State<TopicListScreen> {
       ),
       bottomNavigationBar: const AppNavigationBar(
         selectedIndex: 3,
-        isAdmin: true, // ← explicitly passing isAdmin: true
+        isAdmin: false, // ← explicitly passing isAdmin: true
       ),
     );
   }

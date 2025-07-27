@@ -10,7 +10,7 @@ class AdminForumManagementPage extends StatelessWidget {
       appBar: AppBar(title: Text('Manage Forum')),
       body: Center(child: Text('List of forum posts to moderate goes here')),
       bottomNavigationBar: AppNavigationBar(
-        selectedIndex: 3,
+        selectedIndex: 2,
         isAdmin: true,
       ),
     );
