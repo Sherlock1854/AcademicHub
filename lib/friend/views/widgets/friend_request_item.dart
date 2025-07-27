@@ -1,79 +1,180 @@
-// import 'package:flutter/material.dart';
-// import '../../models/friend_request.dart';
-//
-// class FriendRequestItem extends StatelessWidget {
-//   final FriendRequest request;
-//   const FriendRequestItem({required this.request, super.key});
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return Padding(
-//       padding: const EdgeInsets.only(bottom: 24.0),
-//       child: Row(
-//         children: [
-//           CircleAvatar(
-//             radius: 28,
-//             backgroundImage: NetworkImage(request.imageUrl),
-//           ),
-//           const SizedBox(width: 16),
-//           Expanded(
-//             child: Column(
-//               children: [
-//                 Row(
-//                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                   children: [
-//                     Text(
-//                       request.name,
-//                       style: const TextStyle(
-//                         fontWeight: FontWeight.bold,
-//                         fontSize: 16,
-//                       ),
-//                     ),
-//                     Text(
-//                       request.time,
-//                       style: const TextStyle(
-//                         color: Colors.grey,
-//                         fontSize: 12,
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//                 const SizedBox(height: 8),
-//                 Row(
-//                   mainAxisAlignment: MainAxisAlignment.end,
-//                   children: [
-//                     OutlinedButton(
-//                       onPressed: () {},
-//                       style: OutlinedButton.styleFrom(
-//                         padding: const EdgeInsets.symmetric(horizontal: 20),
-//                         shape: RoundedRectangleBorder(
-//                           borderRadius: BorderRadius.circular(20),
-//                         ),
-//                         side: BorderSide(color: Colors.grey.shade300),
-//                       ),
-//                       child: const Text('Delete', style: TextStyle(color: Colors.black)),
-//                     ),
-//                     const SizedBox(width: 8),
-//                     ElevatedButton(
-//                       onPressed: () {},
-//                       style: ElevatedButton.styleFrom(
-//                         backgroundColor: Colors.blue,
-//                         foregroundColor: Colors.white,
-//                         padding: const EdgeInsets.symmetric(horizontal: 20),
-//                         shape: RoundedRectangleBorder(
-//                           borderRadius: BorderRadius.circular(20),
-//                         ),
-//                         elevation: 2,
-//                       ),
-//                       child: const Text('Confirm'),
-//                     ),
-//                   ],
-//                 ),
-//               ],
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../../models/friend_request.dart';
+import '../../services/friend_request_service.dart';
+
+class FriendRequestItem extends StatelessWidget {
+  final FriendRequest request;
+  final bool isSent;
+
+  const FriendRequestItem({
+    Key? key,
+    required this.request,
+    this.isSent = false,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final service = FriendRequestService();
+    final timeLabel = DateFormat('MMM d').format(request.created);
+    final displayName = isSent ? request.toName : request.fromName;
+    final displayImage = request.imageUrl;
+
+    return Card(
+      color: Colors.white,
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.grey[200],
+                  child: ClipOval(
+                    child: FadeInImage.assetNetwork(
+                      placeholder: 'assets/images/fail.png',
+                      image: displayImage,
+                      width: 48,
+                      height: 48,
+                      fit: BoxFit.cover,
+                      imageErrorBuilder:
+                          (_, __, ___) => Image.asset(
+                            'assets/images/fail.png',
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                          ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        timeLabel,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child:
+                  isSent
+                      ? OutlinedButton(
+                        onPressed:
+                            request.status == 'pending'
+                                ? () async {
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  await service.cancelRequest(request.id);
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Cancelled request to $displayName',
+                                      ),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                                : null,
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(80, 36),
+                          backgroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.blue),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(color: Colors.blue),
+                        ),
+                      )
+                      : Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed:
+                                request.status == 'pending'
+                                    ? () async {
+                                      final messenger = ScaffoldMessenger.of(context);
+                                      await service.declineRequest(request.id);
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Declined request from $displayName',
+                                          ),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
+                                    : null,
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(80, 36),
+                              backgroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.blue),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: const Text(
+                              'Decline',
+                              style: TextStyle(color: Colors.blue),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed:
+                                request.status == 'pending'
+                                    ? () async {
+                                      final messenger = ScaffoldMessenger.of(context);
+                                      await service.acceptRequest(request);
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Accepted request from $displayName',
+                                          ),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
+                                    : null,
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size(80, 36),
+                              backgroundColor: Colors.blue,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: const Text(
+                              'Accept',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

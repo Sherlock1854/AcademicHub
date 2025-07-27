@@ -1,47 +1,207 @@
-// // lib/widgets/friend_list_item.dart
-//
-// import 'package:flutter/material.dart';
-// import '../../../chat/views/chat_screen.dart';
-// import '../../models/friend.dart';
-//
-// class FriendListItem extends StatelessWidget {
-//   final Friend friend;
-//   const FriendListItem({required this.friend, super.key});
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return ListTile(
-//       leading: CircleAvatar(
-//         radius: 28,
-//         backgroundImage: NetworkImage(friend.imageUrl),
-//       ),
-//       title: Text(
-//         friend.name,
-//         style: const TextStyle(fontWeight: FontWeight.bold),
-//       ),
-//       subtitle: Text(
-//         friend.lastMessage,
-//         style: const TextStyle(color: Colors.grey),
-//         maxLines: 1,
-//         overflow: TextOverflow.ellipsis,
-//       ),
-//       trailing: Column(
-//         crossAxisAlignment: CrossAxisAlignment.end,
-//         mainAxisAlignment: MainAxisAlignment.center,
-//         children: [
-//           Text(friend.time, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-//           const SizedBox(height: 4),
-//           if (friend.hasUnreadMessages)
-//             const CircleAvatar(radius: 4, backgroundColor: Colors.blue),
-//         ],
-//       ),
-//       onTap: () {
-//         Navigator.of(context).push(
-//           MaterialPageRoute(
-//             builder: (_) => ChatScreen(friend: friend),
-//           ),
-//         );
-//       },
-//     );
-//   }
-// }
+// lib/screens/widgets/friend_list_item.dart
+
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../../services/friend_service.dart';
+import '../../models/friend.dart';
+import '../../../chat/views/chat_screen.dart';
+import '../../../chat/services/chat_service.dart';
+
+class FriendListItem extends StatelessWidget {
+  final Friend friend;
+
+  const FriendListItem({Key? key, required this.friend}) : super(key: key);
+
+  String _formatTimestamp(DateTime? ts) {
+    if (ts == null) return '';
+    final now = DateTime.now();
+    final diff = now.difference(ts).inDays;
+    if (diff == 0) return DateFormat('h:mm a').format(ts);
+    if (diff == 1) return 'Yesterday';
+    if (diff < 7) return '$diff days ago';
+    return DateFormat('MMM d').format(ts);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final svc = FriendService();
+    final chatSvc = ChatService();
+
+    final raw = friend.lastIsImage ? '[picture]' : friend.lastText;
+    final subtitle = friend.lastIsSender ? 'You: $raw' : raw;
+    final time = _formatTimestamp(friend.lastTimestamp);
+
+    // 1) Build avatar with FadeInImage + asset fallback
+    final avatar = CircleAvatar(
+      radius: 24,
+      backgroundColor: Colors.grey[200],
+      child: ClipOval(
+        child: FadeInImage.assetNetwork(
+          placeholder: 'assets/images/fail.png',
+          image: friend.avatarUrl,
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+          imageErrorBuilder: (context, error, stackTrace) {
+            return Image.asset(
+              'assets/images/fail.png',
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+            );
+          },
+        ),
+      ),
+    );
+
+    return GestureDetector(
+      onLongPress: () => _showOptions(context, svc, chatSvc),
+      child: Container(
+        color: Colors.grey[50], // 2) white background for each item
+        child: ListTile(
+          contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: avatar,
+          title: Text(
+            friend.name,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: Text(
+            subtitle,
+            style: const TextStyle(color: Colors.grey),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (time.isNotEmpty)
+                Text(
+                  time,
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              const SizedBox(height: 4),
+              if (friend.hasUnreadMessages)
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: Colors.blue,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              if (friend.pinned)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Icon(Icons.push_pin, size: 16, color: Colors.grey),
+                ),
+            ],
+          ),
+          onTap: () async {
+            await svc.markRead(friend.id);
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => ChatScreen(friend: friend)),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showOptions(
+      BuildContext context, FriendService svc, ChatService chatSvc) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: Icon(
+                  friend.pinned ? Icons.push_pin_outlined : Icons.push_pin,
+                ),
+                title: Text(
+                  friend.pinned ? 'Unpin Friend' : 'Pin Friend',
+                ),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  await svc.pinFriend(friend.id, !friend.pinned);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        friend.pinned
+                            ? 'Unpinned ${friend.name}'
+                            : 'Pinned ${friend.name}',
+                      ),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                },
+              ),
+
+              ListTile(
+                leading: const Icon(Icons.delete),
+                title: const Text('Delete Friend'),
+                onTap: () {
+                  Navigator.of(context).pop(); // close bottom sheet
+
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: Colors.white,  // ensure white bg
+                      title: const Text('Delete Friend?'),
+                      content: Text(
+                        'Are you sure you want to delete ${friend.name} '
+                            'and all chat history?',
+                      ),
+                      actions: [
+                        // Cancel button
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.blue,               // text
+                            side: const BorderSide(color: Colors.blue), // border
+                            backgroundColor: Colors.white,              // bg
+                          ),
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text('Cancel'),
+                        ),
+
+                        // Delete button
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.white,                // text
+                            side: const BorderSide(color: Colors.red),  // border
+                            backgroundColor: Colors.red, // light-red bg
+                          ),
+                          onPressed: () async {
+                            Navigator.of(ctx).pop(); // close dialog
+                            await svc.deleteFriend(friend.id);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Deleted ${friend.name} & chat history'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          },
+                          child: const Text('Delete'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
