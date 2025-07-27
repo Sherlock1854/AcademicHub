@@ -45,7 +45,6 @@ class _TopicListScreenState extends State<TopicListScreen> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
-
       body: Column(
         children: [
           // ── Search Bar ─────────────────────────────────────────
@@ -82,7 +81,6 @@ class _TopicListScreenState extends State<TopicListScreen> {
               ),
             ),
           ),
-
           // ── Topic List ─────────────────────────────────────────
           Expanded(
             child: StreamBuilder<List<ForumTopic>>(
@@ -98,8 +96,10 @@ class _TopicListScreenState extends State<TopicListScreen> {
                 final allTopics = snap.data!;
                 final topics = _searchQuery.isEmpty
                     ? allTopics
-                    : allTopics.where((t) =>
-                    t.title.toLowerCase().contains(_searchQuery.toLowerCase()))
+                    : allTopics
+                    .where((t) => t.title
+                    .toLowerCase()
+                    .contains(_searchQuery.toLowerCase()))
                     .toList();
 
                 if (topics.isEmpty) {
@@ -140,7 +140,8 @@ class _TopicListScreenState extends State<TopicListScreen> {
                       ),
                       title: Text(t.title),
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => PostListScreen(topic: t)),
+                        MaterialPageRoute(
+                            builder: (_) => PostListScreen(topic: t)),
                       ),
                     );
                   },
@@ -150,7 +151,6 @@ class _TopicListScreenState extends State<TopicListScreen> {
           ),
         ],
       ),
-
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.white,
         child: const Icon(Icons.add, color: Colors.blue),
@@ -159,7 +159,10 @@ class _TopicListScreenState extends State<TopicListScreen> {
           builder: (_) => const AddTopicDialog(),
         ),
       ),
-      bottomNavigationBar: const AppNavigationBar(selectedIndex: 3),
+      bottomNavigationBar: const AppNavigationBar(
+        selectedIndex: 3,
+        isAdmin: true, // ← explicitly passing isAdmin: true
+      ),
     );
   }
 }

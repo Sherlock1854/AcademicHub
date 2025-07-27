@@ -8,8 +8,6 @@ import 'package:academichub/admin/views/quiz_list_page.dart';
 import 'package:academichub/admin/views/forum_management.dart';
 
 // Import your real pages here
-import 'dashboard/views/course_page.dart';
-import 'accounts/views/accounts_page.dart';
 import 'forum/views/topic_list_screen.dart';
 
 const Color functionBlue = Color(0xFF006FF9);
@@ -38,7 +36,7 @@ class AppNavigationBar extends StatelessWidget {
       const DashboardPage(),
       const CourseCategoryPage(),
       const QuizzesPageScreen(),
-      const CourseCategoryPage(), // Forum placeholder
+      const TopicListScreen(), // Forum placeholder
       const UserSettingsPage(),
     ];
 
