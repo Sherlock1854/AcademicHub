@@ -48,6 +48,8 @@ class _ChatScreenState extends State<ChatScreen> {
             ? _botService.messagesStream()
             : _chatService.messagesStream(widget.friend.id);
 
+    _messages$.listen((_) => _scrollToBottom());
+
     // if peer chat, mark incoming as seen and flip sender copy
     if (!_isBotChat) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -66,7 +68,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
-        _scrollCtrl.jumpTo(_scrollCtrl.position.minScrollExtent);
+        _scrollCtrl.jumpTo(_scrollCtrl.position.maxScrollExtent);
       }
     });
   }
@@ -148,26 +150,31 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
-        actions: [
-          PopupMenuButton<String>(
-            color: Colors.white, // ← makes the menu’s background white
-            elevation: 4, // ← optional shadow
-            onSelected: _handleMenuSelection,
-            itemBuilder:
-                (_) => [
-                  PopupMenuItem(
-                    value: 'pin',
-                    child: Text(
-                      widget.friend.pinned ? 'Unpin Friend' : 'Pin Friend',
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete Friend'),
+        actions:
+            _isBotChat
+                ? null
+                : [
+                  PopupMenuButton<String>(
+                    color: Colors.white,
+                    elevation: 4,
+                    onSelected: _handleMenuSelection,
+                    itemBuilder:
+                        (_) => [
+                          PopupMenuItem(
+                            value: 'pin',
+                            child: Text(
+                              widget.friend.pinned
+                                  ? 'Unpin Friend'
+                                  : 'Pin Friend',
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Text('Delete Friend'),
+                          ),
+                        ],
                   ),
                 ],
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -270,24 +277,33 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildListView(List<ChatMessage> history) {
-    final now       = DateTime.now();
-    final today     = DateTime(now.year, now.month, now.day);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
 
     return ListView.builder(
       controller: _scrollCtrl,
-      reverse: false,  // oldest at top, newest at bottom
+      reverse: false, // oldest at top, newest at bottom
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       itemCount: history.length,
       itemBuilder: (ctx, i) {
-        final msg  = history[i];
+        final msg = history[i];
         final prev = i > 0 ? history[i - 1] : null;
 
         // strip time component
-        final msgDate  = DateTime(msg.timestamp.year, msg.timestamp.month, msg.timestamp.day);
-        final prevDate = prev != null
-            ? DateTime(prev.timestamp.year, prev.timestamp.month, prev.timestamp.day)
-            : null;
+        final msgDate = DateTime(
+          msg.timestamp.year,
+          msg.timestamp.month,
+          msg.timestamp.day,
+        );
+        final prevDate =
+            prev != null
+                ? DateTime(
+                  prev.timestamp.year,
+                  prev.timestamp.month,
+                  prev.timestamp.day,
+                )
+                : null;
 
         // show divider if first item or date changed
         final showDivider = prevDate == null || msgDate != prevDate;
@@ -308,10 +324,15 @@ class _ChatScreenState extends State<ChatScreen> {
           // for bot, no long-press menu
           return Column(
             crossAxisAlignment:
-            msg.isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                msg.isSender
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
             children: [
               if (showDivider) DateDivider(date: dateLabel),
-              bubble,
+              MessageBubble(
+                msg: msg,
+                showRead: false, // disable the read‐receipt icon
+              ),
             ],
           );
         }
@@ -319,13 +340,16 @@ class _ChatScreenState extends State<ChatScreen> {
         // peer chat: allow edit/delete on long press
         return Column(
           crossAxisAlignment:
-          msg.isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              msg.isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             if (showDivider) DateDivider(date: dateLabel),
             GestureDetector(
               key: ValueKey(msg.id),
               onLongPress: () => _showMessageOptions(context, msg),
-              child: bubble,
+              child: MessageBubble(
+                msg: msg,
+                showRead: true, // enable the read‐receipt icon
+              ),
             ),
           ],
         );

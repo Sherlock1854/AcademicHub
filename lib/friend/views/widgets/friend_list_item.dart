@@ -145,7 +145,7 @@ class FriendListItem extends StatelessWidget {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.delete_outline),
+                leading: const Icon(Icons.delete),
                 title: const Text('Delete Friend'),
                 onTap: () async {
                   Navigator.of(context).pop();

@@ -6,19 +6,27 @@ import '../../models/chat_message.dart';
 
 class MessageBubble extends StatelessWidget {
   final ChatMessage msg;
+  final bool showRead;
 
-  const MessageBubble({Key? key, required this.msg}) : super(key: key);
+  const MessageBubble({Key? key, required this.msg, this.showRead = true})
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final isSender      = msg.isSender;
-    final hasImage      = msg.imageUrl != null;
-    final bgColor       = hasImage
-        ? Colors.transparent
-        : (isSender ? const Color(0xFF2196F3) : const Color(0xFFF0F0F0));
-    final borderRadius  = BorderRadius.circular(20);
-    final maxWidth      = MediaQuery.of(context).size.width * 0.7;
-    final timestampStr  = DateFormat('h:mm a').format(msg.timestamp);
+    final isSender = msg.isSender;
+    final hasImage = msg.imageUrl != null;
+    final bgColor =
+        hasImage
+            ? Colors.transparent
+            : (isSender ? const Color(0xFF2196F3) : const Color(0xFFF0F0F0));
+    final borderRadius = BorderRadius.circular(20);
+    final maxWidth = MediaQuery.of(context).size.width * 0.7;
+    final timestampStr = DateFormat('h:mm a').format(msg.timestamp);
+
+    final footerTextColor = hasImage
+        ? Colors.white70
+        : (isSender ? Colors.white70 : Colors.black54);
+      final footerIconColor = Colors.white70;
 
     Widget footer = Row(
       mainAxisSize: MainAxisSize.min,
@@ -28,7 +36,7 @@ class MessageBubble extends StatelessWidget {
             '(edited)',
             style: TextStyle(
               fontSize: 10,
-              color: isSender ? Colors.white70 : Colors.black54,
+              color: footerTextColor,
             ),
           ),
           const SizedBox(width: 4),
@@ -37,16 +45,17 @@ class MessageBubble extends StatelessWidget {
           timestampStr,
           style: TextStyle(
             fontSize: 10,
-            color: isSender ? Colors.white70 : Colors.black54,
+            color: footerTextColor,
           ),
         ),
-        if (isSender) ...[
+        if (isSender && showRead) ...[
           const SizedBox(width: 4),
-          // always grey for outgoing
-          const Icon(
-            Icons.done_all,
+          Icon(
+            // single tick when sent, double tick when seen
+            msg.seen ? Icons.done_all : Icons.done,
             size: 14,
-            color: Colors.white70,
+            // keep the same color regardless of seen-status
+            color: footerIconColor,
           ),
         ],
       ],
@@ -62,11 +71,12 @@ class MessageBubble extends StatelessWidget {
               msg.imageUrl!,
               fit: BoxFit.cover,
               width: maxWidth,
-              errorBuilder: (c, e, st) => Image.asset(
-                'assets/images/fail.png',
-                fit: BoxFit.cover,
-                width: maxWidth,
-              ),
+              errorBuilder:
+                  (c, e, st) => Image.asset(
+                    'assets/images/fail.png',
+                    fit: BoxFit.cover,
+                    width: maxWidth,
+                  ),
             ),
           ),
           Positioned(
@@ -86,7 +96,7 @@ class MessageBubble extends StatelessWidget {
     } else {
       content = Column(
         crossAxisAlignment:
-        isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            isSender ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
@@ -114,13 +124,11 @@ class MessageBubble extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
           constraints: BoxConstraints(maxWidth: maxWidth),
-          padding: hasImage
-              ? EdgeInsets.zero
-              : const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: borderRadius,
-          ),
+          padding:
+              hasImage
+                  ? EdgeInsets.zero
+                  : const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(color: bgColor, borderRadius: borderRadius),
           child: content,
         ),
       ),

@@ -32,12 +32,31 @@ class FriendService {
     return _col.doc(friendId).set({'pinned': pinned}, SetOptions(merge: true));
   }
 
-  /// Delete a friend **and** their chat history
+  /// Delete a friend on both sides and remove the conversation
   Future<void> deleteFriend(String friendId) async {
-    // 1) remove friend record
-    await _col.doc(friendId).delete();
+    final batch = _db.batch();
 
-    // 2) cascade‐delete chat history
+    // Remove friend record from current user
+    final myFriendRef = _db
+        .collection('Users')
+        .doc(_myUid)
+        .collection('friends')
+        .doc(friendId);
+    batch.delete(myFriendRef);
+
+    // Remove reciprocal friend record
+    final theirFriendRef = _db
+        .collection('Users')
+        .doc(friendId)
+        .collection('friends')
+        .doc(_myUid);
+    batch.delete(theirFriendRef);
+
+    // Commit both deletes together
+    await batch.commit();
+
+    // Delete the chat history (assumes ChatService.deleteConversation
+    // handles removing all messages & conversation metadata for both sides)
     await ChatService().deleteConversation(friendId);
   }
 

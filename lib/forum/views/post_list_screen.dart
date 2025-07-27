@@ -331,58 +331,10 @@ class _PostListScreenState extends State<PostListScreen> {
                                           children: [
                                             OutlinedButton.icon(
                                               onPressed: () async {
-                                                final uid =
-                                                    FirebaseAuth
-                                                        .instance
-                                                        .currentUser
-                                                        ?.uid;
-                                                if (uid == null) return;
-
-                                                final postRef =
-                                                    FirebaseFirestore.instance
-                                                        .collection('topics')
-                                                        .doc(widget.topic.id)
-                                                        .collection('posts')
-                                                        .doc(p.id);
-
-                                                await FirebaseFirestore.instance
-                                                    .runTransaction((tx) async {
-                                                      final snapshot = await tx
-                                                          .get(postRef);
-                                                      final data =
-                                                          snapshot.data()
-                                                              as Map<
-                                                                String,
-                                                                dynamic
-                                                              >;
-                                                      final likedBy =
-                                                          List<String>.from(
-                                                            data['likedBy'] ??
-                                                                [],
-                                                          );
-                                                      int likeCount =
-                                                          (data['likeCount'] ??
-                                                                  0)
-                                                              as int;
-
-                                                      if (likedBy.contains(
-                                                        uid,
-                                                      )) {
-                                                        likedBy.remove(uid);
-                                                        likeCount =
-                                                            likeCount > 0
-                                                                ? likeCount - 1
-                                                                : 0;
-                                                      } else {
-                                                        likedBy.add(uid);
-                                                        likeCount += 1;
-                                                      }
-
-                                                      tx.update(postRef, {
-                                                        'likedBy': likedBy,
-                                                        'likeCount': likeCount,
-                                                      });
-                                                    });
+                                                await ForumService().toggleLike(
+                                                  topicId: widget.topic.id,
+                                                  postId: p.id,
+                                                );
                                               },
                                               icon: Icon(
                                                 isLiked

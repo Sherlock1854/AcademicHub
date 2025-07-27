@@ -3,7 +3,9 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../models/forum_topic.dart';
 import '../models/forum_post.dart';
@@ -11,6 +13,9 @@ import '../models/forum_post.dart';
 class ForumService {
   final _db      = FirebaseFirestore.instance;
   final _storage = FirebaseStorage.instance;
+
+  final HttpsCallable _notify =
+  FirebaseFunctions.instance.httpsCallable('sendPushNotification');
 
   /// Stream of all topics
   Stream<List<ForumTopic>> topics() {
@@ -132,5 +137,53 @@ class ForumService {
     }
     batch.delete(postRef);
     await batch.commit();
+  }
+
+  /// Toggles the like state for [postId] in [topicId], bumps the count,
+  /// and sends a push to the post author if it’s a new like.
+  Future<void> toggleLike({
+    required String topicId,
+    required String postId,
+  }) async {
+    final postRef = _db
+        .collection('topics')
+        .doc(topicId)
+        .collection('posts')
+        .doc(postId);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await _db.runTransaction((tx) async {
+      final fresh = await tx.get(postRef);
+      final data = fresh.data()! as Map<String, dynamic>;
+      final likedBy = List<String>.from(data['likedBy'] ?? <String>[]);
+      var count = (data['likeCount'] as int?) ?? 0;
+
+      final isNowLiked = !likedBy.contains(user.uid);
+      if (isNowLiked) {
+        likedBy.add(user.uid);
+        count++;
+      } else {
+        likedBy.remove(user.uid);
+        count = count > 0 ? count - 1 : 0;
+      }
+
+      tx.update(postRef, {
+        'likedBy': likedBy,
+        'likeCount': count,
+      });
+
+      // after commit, notify author if it’s a new like
+      if (isNowLiked) {
+        final authorId = data['author'] as String?;
+        if (authorId != null && authorId != user.uid) {
+          await _notify.call({
+            'targetUserId': authorId,
+            'title': 'Your post was liked!',
+            'body': 'Someone liked your post.',
+          });
+        }
+      }
+    });
   }
 }

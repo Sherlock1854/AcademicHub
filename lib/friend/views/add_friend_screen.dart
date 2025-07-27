@@ -19,8 +19,10 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   final _service = FriendRequestService();
 
   late String _myUid;
-  Set<String> _friendIds = {};       // already friends
-  Set<String> _pendingIds = {};      // requests sent
+  String _myName = '';
+  String _myImageUrl = '';
+  Set<String> _friendIds = {};
+  Set<String> _pendingIds = {};
   List<UserResult> _results = [];
   bool _isSearching = false;
 
@@ -28,8 +30,23 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   void initState() {
     super.initState();
     _myUid = FirebaseAuth.instance.currentUser!.uid;
+    _loadMyProfile();
     _loadFriendIds();
     _loadPendingIds();
+  }
+
+  Future<void> _loadMyProfile() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(_myUid)
+        .get();
+    final data = doc.data()!;
+    setState(() {
+      final first = data['firstName']?.toString() ?? '';
+      final last  = data['surname']?.toString() ?? '';
+      _myName     = '$first $last'.trim();
+      _myImageUrl = data['imageUrl']?.toString() ?? '';
+    });
   }
 
   Future<void> _loadFriendIds() async {
@@ -50,7 +67,6 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
         .collection('sentRequests')
         .where('status', isEqualTo: 'pending')
         .get();
-
     setState(() {
       _pendingIds = snap.docs.map((d) => d.id).toSet();
     });
@@ -90,32 +106,31 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
         );
       }).toList();
 
-      setState(() {
-        _results = results;
-      });
+      setState(() => _results = results);
     } catch (e) {
       debugPrint('Search error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Search failed: $e')),
       );
     } finally {
-      setState(() {
-        _isSearching = false;
-      });
+      setState(() => _isSearching = false);
     }
   }
 
   Future<void> _sendRequest(UserResult user) async {
     final now = DateTime.now();
+
     final req = FriendRequest(
-      id:        user.id,         // their UID as document ID
+      id:        user.id,        // doc ID in their subcollection
       fromUid:   _myUid,
+      fromName:  _myName,
       toUid:     user.id,
-      name:      user.name,
-      imageUrl:  user.imageUrl,
+      toName:    user.name,
+      imageUrl:  user.imageUrl,  // single field for the avatar
       created:   now,
       status:    'pending',
     );
+
     await _service.sendRequest(req);
 
     setState(() {
@@ -154,8 +169,8 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                 hintText: 'Search by email',
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.search, color: Colors.blue),
                   onPressed: _doSearch,
@@ -175,6 +190,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
               ),
             ),
             const SizedBox(height: 16),
+
             if (_isSearching)
               const Center(child: CircularProgressIndicator())
             else if (_results.isEmpty)
@@ -209,7 +225,8 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          padding:
+                          const EdgeInsets.symmetric(horizontal: 20),
                         ),
                         child: const Text(
                           'Pending',
@@ -225,7 +242,8 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          padding:
+                          const EdgeInsets.symmetric(horizontal: 20),
                         ),
                         child: const Text(
                           'Add',
@@ -248,19 +266,19 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                             width: 48,
                             height: 48,
                             fit: BoxFit.cover,
-                            imageErrorBuilder: (ctx, err, stack) =>
-                                Image.asset(
-                                  'assets/images/fail.png',
-                                  width: 48,
-                                  height: 48,
-                                  fit: BoxFit.cover,
-                                ),
+                            imageErrorBuilder: (_, __, ___) => Image.asset(
+                              'assets/images/fail.png',
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                       ),
                       title: Text(
                         user.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style:
+                        const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       trailing: button,
                     );
@@ -274,7 +292,6 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   }
 }
 
-// Simple model for a user search result
 class UserResult {
   final String id;
   final String name;

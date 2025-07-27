@@ -25,35 +25,35 @@ class NotificationService {
   /// Send a new notification:
   /// - Save to Firestore
   /// - Trigger FCM push notification via Firebase Cloud Function
-  Future<void> sendNotification({
-    required String toUserId,
-    required NotificationItem item,
-  }) async {
-    final docRef = _db
-        .collection('Users')
-        .doc(toUserId)
-        .collection('notifications')
-        .doc(item.id);
-
-    // Save to Firestore
-    await docRef.set(item.toMap());
-
-    // Send push notification via Cloud Function (optional fallback if token not stored)
-    try {
-      final callable = _functions.httpsCallable('sendPushNotification');
-      await callable.call({
-        'targetUserId': toUserId,
-        'title': item.title,
-        'body': item.description,
-      });
-    } catch (e) {
-      print('⚠️ FCM push notification failed: $e');
-    }
-  }
+  // Future<void> sendNotification({
+  //   required String toUserId,
+  //   required NotificationItem item,
+  // }) async {
+  //   final docRef = _db
+  //       .collection('Users')
+  //       .doc(toUserId)
+  //       .collection('notifications')
+  //       .doc(item.id);
+  //
+  //   // Save to Firestore
+  //   await docRef.set(item.toMap());
+  //
+  //   // Send push notification via Cloud Function (optional fallback if token not stored)
+  //   try {
+  //     final callable = _functions.httpsCallable('sendPushNotification');
+  //     await callable.call({
+  //       'targetUserId': toUserId,
+  //       'title': item.title,
+  //       'body': item.description,
+  //     });
+  //   } catch (e) {
+  //     print('⚠️ FCM push notification failed: $e');
+  //   }
+  // }
 
   /// Mark a notification as read (delete it)
   Future<void> markRead(String id) {
-    return _col.doc(id).delete();
+    return _col.doc(id).update({'read': true});
   }
 
   /// Update notification status (used for friend request accept/decline)

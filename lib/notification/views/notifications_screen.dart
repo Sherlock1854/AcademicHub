@@ -1,43 +1,41 @@
+// lib/notification/views/notifications_screen.dart
+
 import 'package:flutter/material.dart';
 import '../models/notification_item.dart';
 import '../services/notification_service.dart';
 import 'widget/notification_item_widget.dart';
 
-class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key});
-
-  @override
-  State<NotificationsScreen> createState() => _NotificationsScreenState();
-}
-
-class _NotificationsScreenState extends State<NotificationsScreen> {
-  final _service = NotificationService();
+class NotificationsScreen extends StatelessWidget {
+  NotificationsScreen({Key? key}) : super(key: key);
+  final NotificationService _service = NotificationService();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,            // overall background
       appBar: AppBar(
-        title: const Text('Notifications', style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.grey[50],       // light grey bar
         elevation: 0,
-        leading: const BackButton(color: Colors.black),
+        iconTheme: const IconThemeData(color: Colors.black),
+        title: const Text(
+          'Notifications',
+          style: TextStyle(color: Colors.black),
+        ),
       ),
       body: StreamBuilder<List<NotificationItem>>(
         stream: _service.notificationsStream,
-        builder: (context, snap) {
-          if (!snap.hasData) {
+        builder: (ctx, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          final items = snap.data!;
+          final items = snap.data ?? [];
           if (items.isEmpty) {
-            return const Center(
-              child: Text('No notifications', style: TextStyle(color: Colors.grey)),
-            );
+            return const Center(child: Text('No notifications'));
           }
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
+          return ListView.separated(
             itemCount: items.length,
-            itemBuilder: (ctx, i) => NotificationItemWidget(
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (_, i) => NotificationItemWidget(
               item: items[i],
               service: _service,
             ),

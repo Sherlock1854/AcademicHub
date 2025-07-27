@@ -13,9 +13,24 @@ class ChatService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  final FirebaseFunctions _functions = FirebaseFunctions.instance;
+  static final HttpsCallable _sendPush = FirebaseFunctions.instance
+      .httpsCallable('sendPushNotification');
 
   String get _myUid => FirebaseAuth.instance.currentUser!.uid;
+
+  /// Helper to fetch the current user’s display name once per send
+  String? _cachedMyName;
+
+  Future<String> _fetchMyName() async {
+    if (_cachedMyName != null) return _cachedMyName!;
+    final meSnap = await _db.collection('Users').doc(_myUid).get();
+    final data = meSnap.data()!;
+    final first = data['firstName'] as String? ?? '';
+    final last  = data['surname']   as String? ?? '';
+    _cachedMyName = '$first $last'.trim();
+    return _cachedMyName!;
+  }
+
 
   /// Stream of messages exchanged with [friendId], oldest first.
   Stream<List<ChatMessage>> messagesStream(String friendId) {
@@ -47,17 +62,6 @@ class ChatService {
     final ref = _storage.ref().child('chat_images/$friendId/$fileName.jpg');
     await ref.putFile(file);
     return ref.getDownloadURL();
-  }
-
-  /// Helper to invoke your Cloud Function for push notifications
-  Future<void> _sendPushNotification({
-    required String toUid,
-    required String fromUid,
-    required String text,
-  }) {
-    return _functions.httpsCallable('notifyOnNewMessage').call(
-      <String, dynamic>{'toUid': toUid, 'fromUid': fromUid, 'text': text},
-    );
   }
 
   /// Send [text] or [imageUrl] to [friendId].
@@ -136,11 +140,19 @@ class ChatService {
           .update(summaryForThem),
     ]);
 
-    // fire off push notification (non-blocking)
-    if (text != null && text.isNotEmpty) {
-      // fire-and-forget the Cloud Function call
-      _sendPushNotification(toUid: friendId, fromUid: _myUid, text: text);
-    }
+    // 3) Send a push ONLY to the one recipient, with your name in the body
+    final myName = await _fetchMyName();
+
+// This will check if `text` is non-null AND non-empty; otherwise it falls back.
+    final body = (text?.isNotEmpty ?? false)
+        ? '$myName: $text'
+        : '$myName sent an image';
+
+    await _sendPush.call({
+      'targetUserId': friendId,
+      'title': 'New message',
+      'body': body,
+    });
   }
 
   /// When *this* user views the chat, mark all incoming as seen

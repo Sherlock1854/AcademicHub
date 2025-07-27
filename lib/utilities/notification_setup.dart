@@ -1,42 +1,49 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
+// lib/utilities/notification_setup.dart
+
+import 'package:flutter/widgets.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-// import your active-chat tracker
-import 'active_chat.dart';
-// import your top-level handler from main.dart
-import '../main.dart'; // so we can call notificationTapBackground and navigatorKey
+import '../main.dart'; // for navigatorKey & notificationTapBackground
 
-/// The single instance of the local notifications plugin.
+/// Tracks which chat is currently on screen (to suppress duplicates)
+String? activeChatFriendId;
+
+/// Top-level background handler (for terminated/background taps)
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse response) {
+  WidgetsFlutterBinding.ensureInitialized();
+  final friendId = response.payload;
+  if (friendId != null) {
+    navigatorKey.currentState?.pushNamed('/chat', arguments: friendId);
+  }
+}
+
+/// Our single F.L.N. plugin instance
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
-/// Call this from main() before runApp.
+/// Call this from `main()` (before runApp)
 Future<void> initNotifications() async {
-  // 1) Initialize flutter_local_notifications
+  // 1️⃣ Init local notifications
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   await flutterLocalNotificationsPlugin.initialize(
     const InitializationSettings(android: androidInit),
-    onDidReceiveNotificationResponse: (NotificationResponse resp) {
-      final payload = resp.payload;
-      if (payload != null) {
-        navigatorKey.currentState?.pushNamed('/chat', arguments: payload);
+    onDidReceiveNotificationResponse: (resp) {
+      final fid = resp.payload;
+      if (fid != null) {
+        navigatorKey.currentState?.pushNamed('/chat', arguments: fid);
       }
     },
-    // ← use your top-level background handler here:
     onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
   );
 
-  // 2) Request FCM permissions (iOS)
-  final messaging = FirebaseMessaging.instance;
-  await messaging.requestPermission();
-
-  // 3) Configure Android channel (for API ≥26)
+  // 2️⃣ Create (or reuse) an Android channel
   const channel = AndroidNotificationChannel(
-    'chat_channel',       // id
-    'Chat Messages',      // name
+    'chat_channel',
+    'Chat Messages',
     description: 'Incoming chat messages',
     importance: Importance.max,
   );
@@ -45,16 +52,25 @@ Future<void> initNotifications() async {
       AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
 
-  // 4) Handle when the app is in the foreground
-  FirebaseMessaging.onMessage.listen((RemoteMessage msg) async {
-    final data = msg.data;
-    final fromFriendId = data['friendId'] as String?;
-    final notifText = msg.notification?.body ?? data['text'] ?? '';
-    final notifTitle = msg.notification?.title ?? 'New message';
+  // 3️⃣ Request permissions (iOS; no-op on Android)
+  await FirebaseMessaging.instance.requestPermission();
 
-    // 1️⃣ Persist into Firestore for your "Notifications" page
-    if (fromFriendId != null) {
-      final myUid = FirebaseAuth.instance.currentUser!.uid;
+  // 4️⃣ Grab & persist the FCM token
+  final fcm = FirebaseMessaging.instance;
+  final token = await fcm.getToken();
+  if (token != null) _saveFcmToken(token);
+  fcm.onTokenRefresh.listen(_saveFcmToken);
+
+  // 5️⃣ Foreground messages → show a local popup for *any* type
+  FirebaseMessaging.onMessage.listen((RemoteMessage msg) async {
+    final data  = msg.data;
+    final type  = data['type'] as String? ?? 'unknown';
+    final title = msg.notification?.title ?? 'New notification';
+    final body  = msg.notification?.body  ?? data['body'] ?? '';
+
+    // Persist into your “Notifications” collection
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    if (myUid != null) {
       final notifRef = FirebaseFirestore.instance
           .collection('Users')
           .doc(myUid)
@@ -62,54 +78,70 @@ Future<void> initNotifications() async {
           .doc();
       await notifRef.set({
         'id':        notifRef.id,
-        'fromUid':   fromFriendId,
-        'title':     notifTitle,
-        'body':      notifText,
+        'fromUid':   data['fromUid'] ?? data['friendId'] ?? '',
+        'title':     title,
+        'body':      body,
         'timestamp': FieldValue.serverTimestamp(),
         'read':      false,
-        'type':      'chat_message',
+        'type':      type,
       });
     }
 
-    // 2️⃣ Only pop-up if not already in that chat
-    if (fromFriendId != activeChatFriendId) {
-      final n = msg.notification;
-      if (n != null) {
-        flutterLocalNotificationsPlugin.show(
-          n.hashCode,
-          n.title,
-          n.body,
-          NotificationDetails(
-            android: AndroidNotificationDetails(
-              channel.id,
-              channel.name,
-              channelDescription: channel.description,
-              importance: Importance.max,
-              priority: Priority.high,
-            ),
-          ),
-          payload: fromFriendId,
-        );
+    // Decide payload & suppression
+    String? payload;
+    bool canShow = true;
+    if (type == 'chat_message') {
+      payload = data['friendId'] as String?;
+      if (payload == activeChatFriendId) {
+        canShow = false; // already in that chat
       }
     }
-  });
 
-  // 5) Handle taps when app is backgrounded or terminated
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) {
-    final fromFriendId = msg.data['friendId'];
-    if (fromFriendId != null) {
-      navigatorKey.currentState?.pushNamed('/chat', arguments: fromFriendId);
+    if (canShow) {
+      flutterLocalNotificationsPlugin.show(
+        msg.hashCode,
+        title,
+        body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            channel.id,
+            channel.name,
+            channelDescription: channel.description,
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
+        ),
+        payload: payload,
+      );
     }
   });
 
-  // 6) If the app was completely killed and opened via a notification
-  final initialMsg = await FirebaseMessaging.instance.getInitialMessage();
-  if (initialMsg != null) {
-    final fromFriendId = initialMsg.data['friendId'];
-    if (fromFriendId != null) {
+  // 6️⃣ When user taps a notification in background
+  FirebaseMessaging.onMessageOpenedApp.listen((msg) {
+    final fid = msg.data['friendId'] as String?;
+    if (fid != null) {
+      navigatorKey.currentState?.pushNamed('/chat', arguments: fid);
+    }
+  });
+
+  // 7️⃣ When app was killed and opened via notification
+  final initMsg = await FirebaseMessaging.instance.getInitialMessage();
+  if (initMsg != null) {
+    final fid = initMsg.data['friendId'] as String?;
+    if (fid != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        navigatorKey.currentState?.pushNamed('/chat', arguments: fromFriendId);
+        navigatorKey.currentState?.pushNamed('/chat', arguments: fid);
       });
     }
   }
+}
+
+/// Save your FCM token under Users/{uid}.fcmToken
+Future<void> _saveFcmToken(String token) async {
+  final me = FirebaseAuth.instance.currentUser;
+  if (me == null) return;
+  await FirebaseFirestore.instance
+      .collection('Users')
+      .doc(me.uid)
+      .update({'fcmToken': token});
 }

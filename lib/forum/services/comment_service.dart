@@ -1,10 +1,13 @@
 // lib/services/comment_service.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/comment.dart';
 
 class CommentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final HttpsCallable _sendPush = FirebaseFunctions.instance
+      .httpsCallable('sendPushNotification');
 
   /// Stream of comments under topics/{topicId}/posts/{postId}/comments
   Stream<List<Comment>> commentsStream({
@@ -12,7 +15,7 @@ class CommentService {
     required String postId,
   }) {
     final ref = _firestore
-        .collection('topics')             // ← root collection
+        .collection('topics') // ← root collection
         .doc(topicId)
         .collection('posts')
         .doc(postId)
@@ -42,16 +45,27 @@ class CommentService {
 
     // 1) Write the comment
     await commentsRef.add({
-      'authorId' : authorId,
+      'authorId': authorId,
       'avatarUrl': avatarUrl,
-      'text'     : text,
+      'text': text,
       'timestamp': FieldValue.serverTimestamp(),
     });
 
     // 2) Bump the post's commentCount
-    await postRef.update({
-      'commentCount': FieldValue.increment(1),
-    });
+    await postRef.update({'commentCount': FieldValue.increment(1)});
+
+    final postSnap = await postRef.get();
+    if (postSnap.exists) {
+      final data = postSnap.data()!;
+      final targetUid = data['author'] as String?;
+      if (targetUid != null && targetUid != authorId) {
+        await _sendPush.call({
+          'targetUserId': targetUid,
+          'title': 'New Comment',
+          'body': text.length > 50 ? text.substring(0, 47) + '…' : text,
+        });
+      }
+    }
   }
 
   /// Deletes a comment and decrements the post's commentCount.
@@ -60,7 +74,7 @@ class CommentService {
     required String postId,
     required String commentId,
   }) async {
-    final postRef    = _firestore
+    final postRef = _firestore
         .collection('topics')
         .doc(topicId)
         .collection('posts')
@@ -68,8 +82,6 @@ class CommentService {
     final commentRef = postRef.collection('comments').doc(commentId);
 
     await commentRef.delete();
-    await postRef.update({
-      'commentCount': FieldValue.increment(-1),
-    });
+    await postRef.update({'commentCount': FieldValue.increment(-1)});
   }
 }

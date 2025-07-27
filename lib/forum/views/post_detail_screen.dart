@@ -28,9 +28,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   final _forumService = ForumService();
 
   int _currentPage = 0;
-  int _likeCount = 0;
   int _commentCount = 0;
-  bool _isLiked = false;
   bool _isLiking = false;
   bool _canEditPost = false;
   bool _isAdmin = false;
@@ -66,9 +64,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final likeCount = (data['likeCount'] as int?) ?? 0;
     final commentCount = (data['commentCount'] as int?) ?? 0;
     setState(() {
-      _likeCount = likeCount;
       _commentCount = commentCount;
-      _isLiked = user != null && likedBy.contains(user.uid);
     });
   }
 
@@ -85,7 +81,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   Future<String> _getFullName(String userId) async {
     if (_userNamesCache.containsKey(userId)) return _userNamesCache[userId]!;
-    final snap = await FirebaseFirestore.instance.collection('Users').doc(userId).get();
+    final snap =
+        await FirebaseFirestore.instance.collection('Users').doc(userId).get();
     final data = snap.data() ?? {};
     final full = '${data['firstName'] ?? ''} ${data['surname'] ?? ''}'.trim();
     final name = full.isEmpty ? 'Unknown' : full;
@@ -95,9 +92,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   String _timeAgo(DateTime date) {
     final diff = DateTime.now().difference(date);
-    if (diff.inDays > 0) return '${diff.inDays} day${diff.inDays > 1 ? "s" : ""} ago';
-    if (diff.inHours > 0) return '${diff.inHours} hour${diff.inHours > 1 ? "s" : ""} ago';
-    if (diff.inMinutes > 0) return '${diff.inMinutes} min${diff.inMinutes > 1 ? "s" : ""} ago';
+    if (diff.inDays > 0)
+      return '${diff.inDays} day${diff.inDays > 1 ? "s" : ""} ago';
+    if (diff.inHours > 0)
+      return '${diff.inHours} hour${diff.inHours > 1 ? "s" : ""} ago';
+    if (diff.inMinutes > 0)
+      return '${diff.inMinutes} min${diff.inMinutes > 1 ? "s" : ""} ago';
     return 'just now';
   }
 
@@ -119,15 +119,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           count++;
         }
         tx.update(_postRef, {'likedBy': list, 'likeCount': count});
-        setState(() {
-          _isLiked = list.contains(user.uid);
-          _likeCount = count;
-        });
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not update like: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not update like: $e')));
     } finally {
       setState(() => _isLiking = false);
     }
@@ -149,9 +145,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       setState(() => _commentCount++);
       _commentController.clear();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to post comment: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to post comment: $e')));
     }
   }
 
@@ -164,108 +160,162 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     final save = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx2, setState2) => AlertDialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-          title: const Text('Edit Post'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Title')),
-                  const SizedBox(height: 8),
-                  TextField(controller: bodyCtrl, decoration: const InputDecoration(labelText: 'Body')),
-                  const SizedBox(height: 16),
-                  TextButton.icon(
-                    icon: const Icon(Icons.add_photo_alternate),
-                    label: const Text('Add Image'),
-                    onPressed: () async {
-                      final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-                      if (picked != null) {
-                        setState2(() => added.add(File(picked.path)));
-                      }
-                    },
-                  ),
-                  if (keepUrls.isNotEmpty || added.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 80,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: keepUrls.length + added.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (ctx, i) {
-                          if (i < keepUrls.length) {
-                            final url = keepUrls[i];
-                            return Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(url, width: 80, height: 80, fit: BoxFit.cover),
-                                ),
-                                Positioned(
-                                  top: 2, right: 2,
-                                  child: GestureDetector(
-                                    onTap: () => setState2(() {
-                                      keepUrls.removeAt(i);
-                                      removed.add(url);
-                                    }),
-                                    child: Container(
-                                      decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                                      padding: const EdgeInsets.all(2),
-                                      child: const Icon(Icons.close, size: 14, color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          }
-                          final file = added[i - keepUrls.length];
-                          return Stack(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.file(file, width: 80, height: 80, fit: BoxFit.cover),
+      builder:
+          (ctx) => StatefulBuilder(
+            builder:
+                (ctx2, setState2) => AlertDialog(
+                  insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+                  title: const Text('Edit Post'),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextField(
+                            controller: titleCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Title',
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: bodyCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Body',
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextButton.icon(
+                            icon: const Icon(Icons.add_photo_alternate),
+                            label: const Text('Add Image'),
+                            onPressed: () async {
+                              final picked = await ImagePicker().pickImage(
+                                source: ImageSource.gallery,
+                              );
+                              if (picked != null) {
+                                setState2(() => added.add(File(picked.path)));
+                              }
+                            },
+                          ),
+                          if (keepUrls.isNotEmpty || added.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              height: 80,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: keepUrls.length + added.length,
+                                separatorBuilder:
+                                    (_, __) => const SizedBox(width: 8),
+                                itemBuilder: (ctx, i) {
+                                  if (i < keepUrls.length) {
+                                    final url = keepUrls[i];
+                                    return Stack(
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          child: Image.network(
+                                            url,
+                                            width: 80,
+                                            height: 80,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                        Positioned(
+                                          top: 2,
+                                          right: 2,
+                                          child: GestureDetector(
+                                            onTap:
+                                                () => setState2(() {
+                                                  keepUrls.removeAt(i);
+                                                  removed.add(url);
+                                                }),
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.black54,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              padding: const EdgeInsets.all(2),
+                                              child: const Icon(
+                                                Icons.close,
+                                                size: 14,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }
+                                  final file = added[i - keepUrls.length];
+                                  return Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.file(
+                                          file,
+                                          width: 80,
+                                          height: 80,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 2,
+                                        right: 2,
+                                        child: GestureDetector(
+                                          onTap:
+                                              () => setState2(() {
+                                                added.removeAt(
+                                                  i - keepUrls.length,
+                                                );
+                                              }),
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              color: Colors.black54,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            padding: const EdgeInsets.all(2),
+                                            child: const Icon(
+                                              Icons.close,
+                                              size: 14,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
-                              Positioned(
-                                top: 2, right: 2,
-                                child: GestureDetector(
-                                  onTap: () => setState2(() {
-                                    added.removeAt(i - keepUrls.length);
-                                  }),
-                                  child: Container(
-                                    decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                                    padding: const EdgeInsets.all(2),
-                                    child: const Icon(Icons.close, size: 14, color: Colors.white),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
+                            ),
+                          ],
+                        ],
                       ),
                     ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Save'),
+                    ),
                   ],
-                ],
-              ),
-            ),
+                ),
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
-          ],
-        ),
-      ),
     );
     if (save != true) return;
 
     // upload new files
     final newUrls = <String>[];
     for (final file in added) {
-      final ref = FirebaseStorage.instance
-          .ref('post_images/${widget.post.id}/${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final ref = FirebaseStorage.instance.ref(
+        'post_images/${widget.post.id}/${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
       await ref.putFile(file);
       newUrls.add(await ref.getDownloadURL());
     }
@@ -296,14 +346,23 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Future<void> _confirmDeletePost() async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete post?'),
-        content: const Text('This will delete the post and all its comments.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
-        ],
-      ),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Delete post?'),
+            content: const Text(
+              'This will delete the post and all its comments.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
     );
     if (ok == true) {
       await _forumService.deletePost(
@@ -318,14 +377,21 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final ctrl = TextEditingController(text: c.text);
     final save = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Edit Comment'),
-        content: TextField(controller: ctrl, maxLines: 3),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
-        ],
-      ),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Edit Comment'),
+            content: TextField(controller: ctrl, maxLines: 3),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Save'),
+              ),
+            ],
+          ),
     );
     if (save == true) {
       await _commentsRef.doc(c.id).update({
@@ -338,14 +404,21 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Future<void> _confirmDeleteComment(String commentId) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete comment?'),
-        content: const Text('This cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
-        ],
-      ),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Delete comment?'),
+            content: const Text('This cannot be undone.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
     );
     if (ok == true) {
       await _commentsRef.doc(commentId).delete();
@@ -360,7 +433,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final canEdit = isAuthor;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),  // a bit tighter overall
+      padding: const EdgeInsets.symmetric(vertical: 6), // a bit tighter overall
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -376,12 +449,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   width: 36,
                   height: 36,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Image.asset(
-                    'assets/images/fail.png',
-                    width: 36,
-                    height: 36,
-                    fit: BoxFit.cover,
-                  ),
+                  errorBuilder:
+                      (_, __, ___) => Image.asset(
+                        'assets/images/fail.png',
+                        width: 36,
+                        height: 36,
+                        fit: BoxFit.cover,
+                      ),
                 ),
               ),
             ),
@@ -404,7 +478,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           return Text(
                             name,
                             style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           );
                         },
                       ),
@@ -421,12 +497,19 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           if (choice == 'edit') _showEditCommentDialog(c);
                           if (choice == 'delete') _confirmDeleteComment(c.id);
                         },
-                        itemBuilder: (_) => [
-                          if (canEdit)
-                            const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                          if (canDelete)
-                            const PopupMenuItem(value: 'delete', child: Text('Delete')),
-                        ],
+                        itemBuilder:
+                            (_) => [
+                              if (canEdit)
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
+                              if (canDelete)
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete'),
+                                ),
+                            ],
                       ),
                   ],
                 ),
@@ -435,10 +518,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 const SizedBox(height: 0),
 
                 // Comment body
-                Text(
-                  c.text,
-                  style: const TextStyle(fontSize: 14, height: 1.3),
-                ),
+                Text(c.text, style: const TextStyle(fontSize: 14, height: 1.3)),
               ],
             ),
           ),
@@ -459,21 +539,29 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         backgroundColor: Colors.grey[50],
         foregroundColor: Colors.black,
         elevation: 1,
-        actions: _canEditPost
-            ? [
-          PopupMenuButton<String>(
-            color: Colors.white,
-            onSelected: (choice) {
-              if (choice == 'edit') _showEditDialog();
-              if (choice == 'delete') _confirmDeletePost();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'edit', child: Text('Edit Post')),
-              PopupMenuItem(value: 'delete', child: Text('Delete Post')),
-            ],
-          ),
-        ]
-            : null,
+        actions:
+            _canEditPost
+                ? [
+                  PopupMenuButton<String>(
+                    color: Colors.white,
+                    onSelected: (choice) {
+                      if (choice == 'edit') _showEditDialog();
+                      if (choice == 'delete') _confirmDeletePost();
+                    },
+                    itemBuilder:
+                        (_) => const [
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: Text('Edit Post'),
+                          ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Text('Delete Post'),
+                          ),
+                        ],
+                  ),
+                ]
+                : null,
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -511,12 +599,20 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(name,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16)),
-                        Text(_timeAgo(dt),
-                            style: const TextStyle(
-                                color: Colors.grey, fontSize: 12)),
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          _timeAgo(dt),
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -524,9 +620,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               },
             ),
             const SizedBox(height: 12),
-            Text(_title,
-                style:
-                const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(
+              _title,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 16),
             if (images.isNotEmpty) ...[
               SizedBox(
@@ -537,31 +634,48 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       controller: _pageController,
                       itemCount: images.length,
                       onPageChanged: (i) => setState(() => _currentPage = i),
-                      itemBuilder: (_, i) => ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.network(
-                          images[i],
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          loadingBuilder: (_, child, prog) =>
-                          prog == null ? child : const Center(child: CircularProgressIndicator()),
-                          errorBuilder: (_, __, ___) =>
-                              Image.asset('assets/images/fail.png', fit: BoxFit.cover),
-                        ),
-                      ),
+                      itemBuilder:
+                          (_, i) => ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.network(
+                              images[i],
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              loadingBuilder:
+                                  (_, child, prog) =>
+                                      prog == null
+                                          ? child
+                                          : const Center(
+                                            child: CircularProgressIndicator(),
+                                          ),
+                              errorBuilder:
+                                  (_, __, ___) => Image.asset(
+                                    'assets/images/fail.png',
+                                    fit: BoxFit.cover,
+                                  ),
+                            ),
+                          ),
                     ),
                     if (images.length > 1)
                       Positioned(
                         top: 8,
                         right: 8,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black54,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text('${_currentPage + 1}/${images.length}',
-                              style: const TextStyle(color: Colors.white, fontSize: 12)),
+                          child: Text(
+                            '${_currentPage + 1}/${images.length}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
                         ),
                       ),
                   ],
@@ -571,48 +685,80 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             ],
             Text(_body, style: const TextStyle(fontSize: 16, height: 1.4)),
             const SizedBox(height: 24),
-            Row(
-              children: [
-                OutlinedButton.icon(
-                  onPressed: _toggleLike,
-                  icon: Icon(
-                    _isLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
-                    color: Colors.blue,
-                  ),
-                  label: Text('$_likeCount',
-                      style: const TextStyle(color: Colors.blue)),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.blue),
-                    shape: const StadiumBorder(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.comment_outlined, color: Colors.blue),
-                  label: Text('$_commentCount',
-                      style: const TextStyle(color: Colors.blue)),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.blue),
-                    shape: const StadiumBorder(),
-                  ),
-                ),
-              ],
+            StreamBuilder<DocumentSnapshot>(
+              stream: _postRef.snapshots(),
+              builder: (ctx, snap) {
+                if (!snap.hasData) return const SizedBox();
+                final data = snap.data!.data() as Map<String, dynamic>;
+                final likeCount = (data['likeCount'] as int?) ?? 0;
+                final commentCount = (data['commentCount'] as int?) ?? 0;
+                final likedBy = List<String>.from(
+                  data['likedBy'] ?? <String>[],
+                );
+                final isLiked = _myUid != null && likedBy.contains(_myUid);
+
+                return Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed:
+                          () => _forumService.toggleLike(
+                            topicId: widget.post.topicId,
+                            postId: widget.post.id,
+                          ),
+                      icon: Icon(
+                        isLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
+                        color: Colors.blue,
+                      ),
+                      label: Text(
+                        '$likeCount',
+                        style: const TextStyle(color: Colors.blue),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.blue),
+                        shape: const StadiumBorder(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: () {},
+                      icon: const Icon(
+                        Icons.comment_outlined,
+                        color: Colors.blue,
+                      ),
+                      label: Text(
+                        '$commentCount',
+                        style: const TextStyle(color: Colors.blue),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.blue),
+                        shape: const StadiumBorder(),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 24),
-            const Text('Comments',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Comments',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 16),
             StreamBuilder<QuerySnapshot>(
-              stream: _commentsRef.orderBy('timestamp', descending: true).snapshots(),
+              stream:
+                  _commentsRef
+                      .orderBy('timestamp', descending: true)
+                      .snapshots(),
               builder: (ctx, snap) {
                 if (snap.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final docs = snap.data!.docs;
                 if (docs.isEmpty) {
-                  return const Text('Be the first to comment.',
-                      style: TextStyle(color: Colors.grey));
+                  return const Text(
+                    'Be the first to comment.',
+                    style: TextStyle(color: Colors.grey),
+                  );
                 }
                 final comments = docs.map((d) => Comment.fromDoc(d)).toList();
                 return Column(children: comments.map(_buildComment).toList());
@@ -639,8 +785,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   hintText: 'Add a comment…',
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                     borderSide: BorderSide.none,
@@ -666,10 +814,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Chat with Gemini',
-        backgroundColor: Colors.white,          // white circle
+        backgroundColor: Colors.white, // white circle
         child: const Icon(
-          Icons.smart_toy,                       // robot/AI icon
-          color: Colors.blue,                    // blue icon
+          Icons.smart_toy, // robot/AI icon
+          color: Colors.blue, // blue icon
           size: 28,
         ),
         onPressed: () {
@@ -681,15 +829,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             lastIsImage: false,
             lastTimestamp: DateTime.now(),
             lastIsSender: false,
-            avatarUrl: '',          // <-- use avatarUrl, not avatarBase64
+            avatarUrl: '', // <-- use avatarUrl, not avatarBase64
             hasUnreadMessages: false,
             pinned: false,
           );
 
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ChatScreen(friend: botFriend),
-            ),
+            MaterialPageRoute(builder: (_) => ChatScreen(friend: botFriend)),
           );
         },
       ),
