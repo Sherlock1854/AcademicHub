@@ -36,13 +36,6 @@ class UserSettingsService {
         },
       ),
       UserSettingsItem(
-        icon: Icons.lock_outline,
-        title: 'Change Password',
-        onTap: () {
-          debugPrint('Change Password tapped');
-        },
-      ),
-      UserSettingsItem(
         icon: Icons.delete_forever,
         title: 'Delete Account',
         onTap: onDelete,

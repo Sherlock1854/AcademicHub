@@ -1,8 +1,13 @@
+// lib/users/views/edit_profile_page.dart
+
 import 'dart:io';
 
 import 'package:academichub/users/services/user_services.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+// Replace with your actual blue if you have a constant:
+const Color functionBlue = Color(0xFF006FF9);
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -25,20 +30,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _loading = false;
   bool _isDirty = false;
 
-  /// Allow save whenever there’s a non‐empty full name
   bool get _hasName => _nameCtrl.text.trim().isNotEmpty;
 
   @override
   void initState() {
     super.initState();
-    _nameCtrl = TextEditingController()
-      ..addListener(() {
-        _markDirty();
-        setState(() {}); // update button enable state
-      });
-    _ageCtrl = TextEditingController()..addListener(() => _markDirty());
-    _aboutCtrl = TextEditingController()..addListener(() => _markDirty());
-
+    _nameCtrl = TextEditingController()..addListener(_markDirty);
+    _ageCtrl = TextEditingController()..addListener(_markDirty);
+    _aboutCtrl = TextEditingController()..addListener(_markDirty);
     _loadExistingData();
   }
 
@@ -95,8 +94,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _loading = true);
+
     try {
       String? url = _photoUrl;
       if (_pickedImage != null) {
@@ -118,7 +117,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully')),
         );
-        // pop back to Account page
         Navigator.pop(context);
       }
     } catch (e) {
@@ -149,91 +147,109 @@ class _EditProfilePageState extends State<EditProfilePage> {
         appBar: AppBar(
           title: const Text('Edit Profile'),
           centerTitle: true,
-          backgroundColor: Colors.white,
-          elevation: 0,
+          // Removed custom colors so it uses your imported theme
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Form(
             key: _formKey,
-            child: Column(children: [
-              GestureDetector(
-                onTap: _pickImage,
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.grey[300],
-                  backgroundImage: _pickedImage != null
-                      ? FileImage(_pickedImage!)
-                      : (_photoUrl != null
-                      ? NetworkImage(_photoUrl!) as ImageProvider
-                      : null),
-                  child: (_pickedImage == null && _photoUrl == null)
-                      ? const Icon(Icons.person, size: 50, color: Colors.white70)
+            child: Column(
+              children: [
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.grey[300],
+                    backgroundImage: _pickedImage != null
+                        ? FileImage(_pickedImage!)
+                        : (_photoUrl != null
+                        ? NetworkImage(_photoUrl!) as ImageProvider
+                        : null),
+                    child: (_pickedImage == null && _photoUrl == null)
+                        ? const Icon(Icons.person, size: 50, color: Colors.white70)
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text('Tap avatar to change profile'),
+                const SizedBox(height: 24),
+
+                TextFormField(
+                  controller: _nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Full Name'),
+                  validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
+                ),
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _ageCtrl,
+                  decoration: const InputDecoration(labelText: 'Age'),
+                  keyboardType: TextInputType.number,
+                  validator: (v) =>
+                  (v == null || int.tryParse(v.trim()) == null)
+                      ? 'Enter a valid age'
                       : null,
                 ),
-              ),
-              const SizedBox(height: 8),
-              const Text('Tap avatar to change profile'),
-              const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(labelText: 'Full Name'),
-                validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
-              ),
-              const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _gender,
+                  decoration: const InputDecoration(labelText: 'Gender'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.normal,
+                    color: Colors.black,
+                  ),
+                  items: const [
+                    'Male',
+                    'Female',
+                    'Not Prefer to Say',
+                  ].map((g) => DropdownMenuItem(
+                    value: g,
+                    child: Text(
+                      g,
+                      style: TextStyle(fontWeight: FontWeight.normal),
+                    ),
+                  )).toList(),
+                  onChanged: (v) => setState(() {
+                    _gender = v;
+                    _isDirty = true;
+                  }),
+                  validator: (v) => v == null ? 'Select gender' : null,
+                ),
+                const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _ageCtrl,
-                decoration: const InputDecoration(labelText: 'Age'),
-                keyboardType: TextInputType.number,
-                validator: (v) => (v == null || int.tryParse(v.trim()) == null)
-                    ? 'Enter a valid age'
-                    : null,
-              ),
-              const SizedBox(height: 16),
+                TextFormField(
+                  controller: _aboutCtrl,
+                  decoration: const InputDecoration(labelText: 'About Me'),
+                  maxLines: 4,
+                ),
 
-              DropdownButtonFormField<String>(
-                value: _gender,
-                decoration: const InputDecoration(labelText: 'Gender'),
-                items: [
-                  'Male',
-                  'Female',
-                  'Not Prefer to Say',
-                ].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-                onChanged: (v) => setState(() {
-                  _gender = v;
-                  _isDirty = true;
-                }),
-                validator: (v) => v == null ? 'Select gender' : null,
-              ),
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _aboutCtrl,
-                decoration: const InputDecoration(labelText: 'About Me'),
-                maxLines: 4,
-              ),
-              const SizedBox(height: 32),
-            ]),
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
-
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: SizedBox(
             height: 50,
-            child: ElevatedButton(
+            child: OutlinedButton(
               onPressed: (_loading || !_hasName) ? null : _saveProfile,
-              style: ElevatedButton.styleFrom(
+              style: OutlinedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: functionBlue,
+                side: const BorderSide(color: functionBlue),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
               child: _loading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Save Changes', style: TextStyle(fontSize: 16)),
+                  ? const CircularProgressIndicator(color: functionBlue)
+                  : const Text(
+                'Save Changes',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
             ),
           ),
         ),

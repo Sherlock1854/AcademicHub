@@ -1,8 +1,12 @@
+// lib/course/views/course_detail_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:academichub/course/models/course.dart';
 import 'package:academichub/course/services/course_service.dart';
-import 'package:academichub/course/views/course_content_page.dart';
+
+const Color functionBlue = Color(0xFF006FF9);
 
 class CourseDetailPage extends StatefulWidget {
   final Course course;
@@ -16,41 +20,56 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
   bool _joining = false;
 
   Future<void> _handleJoin() async {
-    setState(() => _joining = true);
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return;
-    await CourseService.instance.joinCourse(userId, widget.course.id);
-    setState(() => _joining = false);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
+    setState(() => _joining = true);
+
+    final userId = user.uid;
+    final courseId = widget.course.id;
+
+    final docRef = FirebaseFirestore.instance
+        .collection('Users')
+        .doc(userId)
+        .collection('JoinedCourses')
+        .doc(courseId);
+
+    if ((await docRef.get()).exists) {
+      setState(() => _joining = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You’ve already joined this course.')),
+      );
+      return;
+    }
+
+    await CourseService.instance.joinCourse(userId, courseId);
+
+    setState(() => _joining = false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Successfully joined the course!')),
     );
-
-    // now push into the CONTENT LIST page, not a single content
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CourseContentPage(courseId: widget.course.id),
-      ),
-    );
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override
   Widget build(BuildContext context) {
     final course = widget.course;
-    final sections = course.sections; // List<dynamic>
+    final sections = course.sections;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(course.title),
+        centerTitle: true,
+        title: Text(
+          course.title,
+          style: const TextStyle(color: Colors.black),
+        ),
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         elevation: 1,
+        iconTheme: const IconThemeData(color: functionBlue),  // back arrow
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
         children: [
-          // — Thumbnail —
           if (course.thumbnailUrl != null && course.thumbnailUrl!.isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -62,8 +81,6 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
               ),
             ),
           const SizedBox(height: 16),
-
-          // — Metadata —
           Text(course.category,
               style: const TextStyle(fontSize: 13, color: Colors.grey)),
           const SizedBox(height: 4),
@@ -75,24 +92,18 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
               style: const TextStyle(fontSize: 14, color: Colors.black87)),
           const SizedBox(height: 16),
           const Divider(),
-
-          // — Sections & Contents (tapping now also goes to the LIST page) —
           for (var sIndex = 0; sIndex < sections.length; sIndex++) ...[
             Builder(builder: (_) {
               final secMap =
               Map<String, dynamic>.from(sections[sIndex] as Map);
               final sectionTitle = secMap['title'] as String? ?? 'Untitled';
-
-              // normalize
-              final rawC = secMap['contents'];
-              List<dynamic> contents;
-              if (rawC is List) {
-                contents = rawC;
-              } else if (rawC is Map<String, dynamic>) {
-                contents = rawC.entries.map((e) => e.value).toList();
-              } else {
-                contents = <dynamic>[];
-              }
+              final raw = secMap['contents'];
+              final contents = raw is List
+                  ? raw
+                  : (raw as Map<String, dynamic>)
+                  .entries
+                  .map((e) => e.value)
+                  .toList();
 
               return Padding(
                 padding: const EdgeInsets.only(top: 16),
@@ -103,7 +114,6 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                         style: const TextStyle(
                             fontSize: 18, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
-
                     for (var cIndex = 0; cIndex < contents.length; cIndex++) ...[
                       Builder(builder: (_) {
                         final cMap =
@@ -113,43 +123,29 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                         (cMap['type'] as String? ?? '').toLowerCase();
                         final isVideo = type == 'video';
 
-                        return InkWell(
-                          onTap: () {
-                            // **instead of passing content**, we go to the CONTENT LIST page
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => CourseContentPage(
-                                    courseId: widget.course.id),
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 12),
+                          margin: const EdgeInsets.only(bottom: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isVideo
+                                    ? Icons.play_circle_fill
+                                    : Icons.article,
+                                size: 20,
+                                color: functionBlue,  // always blue
                               ),
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 8, horizontal: 12),
-                            margin: const EdgeInsets.only(bottom: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  isVideo
-                                      ? Icons.play_circle_fill
-                                      : Icons.article,
-                                  size: 20,
-                                  color: isVideo
-                                      ? Colors.deepPurple
-                                      : Colors.blueGrey,
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(title,
-                                      style: const TextStyle(fontSize: 14)),
-                                ),
-                              ],
-                            ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(title,
+                                    style: const TextStyle(fontSize: 14)),
+                              ),
+                            ],
                           ),
                         );
                       }),
@@ -161,16 +157,17 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
           ],
         ],
       ),
-
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         color: Theme.of(context).scaffoldBackgroundColor,
         child: _joining
-            ? const Center(child: CircularProgressIndicator())
-            : ElevatedButton(
+            ? const Center(child: CircularProgressIndicator(color: functionBlue))
+            : OutlinedButton(
           onPressed: _handleJoin,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.amber,
+          style: OutlinedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: functionBlue,
+            side: const BorderSide(color: functionBlue),
             minimumSize: const Size.fromHeight(48),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12)),

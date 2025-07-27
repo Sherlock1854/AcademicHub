@@ -5,13 +5,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/quiz.dart';
 import '../models/quiz_question.dart';
 import '../services/quiz_service.dart';
-
-// ← import your question page
 import 'quiz_question_page.dart';
+
+const Color functionBlue = Color(0xFF006FF9);
 
 class QuizAttemptPage extends StatefulWidget {
   final String quizId;
-
   const QuizAttemptPage({Key? key, required this.quizId}) : super(key: key);
 
   @override
@@ -36,7 +35,16 @@ class _QuizAttemptPageState extends State<QuizAttemptPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Take Quiz')),
+      appBar: AppBar(
+        title: const Text(
+          'Attempt Quiz',
+          style: TextStyle(color: Colors.black),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: functionBlue),
+      ),
       body: FutureBuilder<Quiz>(
         future: _quizFut,
         builder: (ctx, quizSnap) {
@@ -58,36 +66,33 @@ class _QuizAttemptPageState extends State<QuizAttemptPage> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Title
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      quiz.title,
-                      style: const TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-
-                  // Cover
                   if (quiz.coverUrl != null) ...[
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            quiz.coverUrl!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                          ),
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          quiz.coverUrl!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: 200,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
                   ],
-
-                  // Count
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Text(
+                      quiz.title,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Text(
@@ -96,33 +101,46 @@ class _QuizAttemptPageState extends State<QuizAttemptPage> {
                       textAlign: TextAlign.center,
                     ),
                   ),
-
-                  const Spacer(),
-
-                  // ← UPDATED START BUTTON
+                  const SizedBox(height: 40), // reduced gap
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: ElevatedButton(
-                      onPressed: questions.isEmpty
-                          ? null
-                          : () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => QuizQuestionsPage(
-                              quizId: widget.quizId,
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Center(
+                      child: SizedBox(
+                        width: 200,
+                        child: OutlinedButton(
+                          onPressed: questions.isEmpty
+                              ? null
+                              : () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => QuizQuestionsPage(
+                                  quizId: widget.quizId,
+                                ),
+                              ),
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: functionBlue,
+                            side: const BorderSide(color: functionBlue),
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48)),
-                      child: const Text(
-                        'Start Quiz',
-                        style: TextStyle(fontSize: 18),
+                          child: const Text(
+                            'Attempt Quiz',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500, // less bold
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
+                  const SizedBox(height: 0), // spacing below button
                 ],
               );
             },

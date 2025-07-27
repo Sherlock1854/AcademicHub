@@ -1,5 +1,6 @@
 // lib/auth/views/login.dart
 
+import 'package:academichub/dashboard/views/dashboard_page.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
@@ -62,7 +63,7 @@ class _LoginPageState extends State<LoginPage> {
       } else {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const CourseCategoryPage()),
+          MaterialPageRoute(builder: (_) => const DashboardPage()),
         );
       }
     } catch (e) {

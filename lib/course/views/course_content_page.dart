@@ -6,6 +6,8 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../models/course.dart';
 import '../models/course_content.dart';
 
+const Color functionBlue = Color(0xFF006FF9);
+
 class CourseContentPage extends StatefulWidget {
   final String courseId;
   const CourseContentPage({Key? key, required this.courseId})
@@ -36,7 +38,6 @@ class _CourseContentPageState extends State<CourseContentPage> {
     if (!doc.exists) throw 'Course not found';
     final course = Course.fromMap(doc.data()!, doc.id);
 
-    // pick first content if available
     CourseContent? first;
     if (course.sections.isNotEmpty) {
       final sec0 = course.sections[0] as Map<String, dynamic>;
@@ -54,7 +55,6 @@ class _CourseContentPageState extends State<CourseContentPage> {
       }
     }
 
-    // initialize everything before we rebuild once
     if (first != null) {
       _initSelected(first);
     }
@@ -67,7 +67,6 @@ class _CourseContentPageState extends State<CourseContentPage> {
   }
 
   void _initSelected(CourseContent content) {
-    // dispose old
     _ytController?.dispose();
     _ytController = null;
     _articleText = null;
@@ -102,16 +101,19 @@ class _CourseContentPageState extends State<CourseContentPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Course Contents'),
+        centerTitle: true,
+        title: Text(
+          'Course Contents',
+          style: const TextStyle(color: Colors.black),
+        ),
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         elevation: 1,
+        iconTheme: const IconThemeData(color: functionBlue),
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
         child: Column(
           children: [
-            // ─── Top area ───
             if (_selected != null && _ytController != null) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -137,14 +139,13 @@ class _CourseContentPageState extends State<CourseContentPage> {
                     child: Text(
                       _articleText!,
                       style: const TextStyle(fontSize: 16, height: 1.5),
+                      textAlign: TextAlign.justify,
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
             ],
-
-            // ─── Pills list ───
             Expanded(
               child: ListView.builder(
                 itemCount: sections.length,
@@ -160,70 +161,69 @@ class _CourseContentPageState extends State<CourseContentPage> {
                       .map((e) => e.value)
                       .toList();
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Section header
-                      Text(
-                        sectionTitle,
-                        style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 8),
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          sectionTitle,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        for (var cIndex = 0;
+                        cIndex < contents.length;
+                        cIndex++) ...[
+                          Builder(builder: (_) {
+                            final cMap = Map<String, dynamic>.from(
+                                contents[cIndex] as Map);
+                            final title = cMap['title'] as String? ?? '';
+                            final type =
+                            (cMap['type'] as String? ?? '').toLowerCase();
+                            final isVideo = type == 'video';
 
-                      // Section contents
-                      for (var cIndex = 0;
-                      cIndex < contents.length;
-                      cIndex++) ...[
-                        Builder(builder: (_) {
-                          final m =
-                          Map<String, dynamic>.from(contents[cIndex] as Map);
-                          final id =
-                              (m['id'] as String?) ?? '$sIndex-$cIndex';
-                          final content =
-                          CourseContent.fromMap(m, id);
-                          final isVideo =
-                              content.type.toLowerCase() == 'video';
-
-                          return InkWell(
-                            onTap: () {
-                              _initSelected(content);
-                              setState(() => _selected = content);
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 6),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 8, horizontal: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    isVideo
-                                        ? Icons.play_circle_fill
-                                        : Icons.article_outlined,
-                                    size: 20,
-                                    color: isVideo
-                                        ? Colors.deepPurple
-                                        : Colors.blueGrey,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      content.title,
-                                      style: const TextStyle(fontSize: 14),
+                            return InkWell(
+                              onTap: () {
+                                _initSelected(
+                                    CourseContent.fromMap(cMap, '${sIndex}-$cIndex'));
+                                setState(() => _selected =
+                                    CourseContent.fromMap(cMap, '${sIndex}-$cIndex'));
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 8, horizontal: 12),
+                                margin: const EdgeInsets.only(bottom: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      isVideo
+                                          ? Icons.play_circle_fill
+                                          : Icons.article_outlined,
+                                      size: 20,
+                                      color: functionBlue,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        title,
+                                        style:
+                                        const TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          );
-                        }),
+                            );
+                          }),
+                        ],
                       ],
-                      const SizedBox(height: 16),
-                    ],
+                    ),
                   );
                 },
               ),

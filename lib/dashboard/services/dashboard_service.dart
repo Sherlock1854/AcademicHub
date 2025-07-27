@@ -1,9 +1,11 @@
 // lib/services/dashboard_service.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import '../models/dashboard.dart';
+import '../models/dashboard.dart';        // <-- your Course model
+import 'package:academichub/quizzes/models/quiz_attempt.dart';     // <-- the QuizAttempt.fromDoc factory
 
-class CourseService {
+class DashboardService {
   /// Simulates fetching enrolled courses from an API.
   Future<List<Course>> fetchEnrolledCourses() async {
     // Wait for 2 seconds to simulate a network request.
@@ -31,5 +33,21 @@ class CourseService {
         iconColor: Colors.blue,
       ),
     ];
+  }
+
+  /// Fetches the quiz attempts that *this* user has done.
+  /// Assumes you have a `quizAttempts` collection where each document
+  /// has at least: userId, quizId, timestamp, score, total, answers.
+  Future<List<QuizAttempt>> fetchUserAttempts(String userId) async {
+    final query = FirebaseFirestore.instance
+        .collection('quizAttempts')
+        .where('userId', isEqualTo: userId)
+        .orderBy('timestamp', descending: true);
+
+    final snapshot = await query.get();
+
+    return snapshot.docs
+        .map((doc) => QuizAttempt.fromDoc(doc))
+        .toList(growable: false);
   }
 }
