@@ -23,9 +23,9 @@ class _UserSettingsPageState extends State<UserSettingsPage> {
   void initState() {
     super.initState();
     _userSettings = _settingsService.getUserSettingsItems(
-      context:        context,
-      onLogout:       () => _settingsService.signOut(context),
-      onDelete:       () => _settingsService.deleteAccount(context),
+      context: context,
+      onLogout: () => _settingsService.signOut(context),
+      onDelete: () => _settingsService.deleteAccount(context),
       onEditComplete: _loadUserData,
     );
     _loadUserData();
@@ -38,19 +38,20 @@ class _UserSettingsPageState extends State<UserSettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final user     = FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
     final fullName = _userData?['fullName'] ?? 'Loading...';
-    final email    = user?.email ?? 'email@example.com';
-    final role     = _userData?['role'] as String?;
+    final email = user?.email ?? 'email@example.com';
+    final role = _userData?['role'] as String?;
     final photoUrl = _userData?['photoUrl'] as String?;
-    final about    = _userData?['about']   as String?;
+    final about = _userData?['about'] as String?;
 
     final formattedRole = role != null
         ? '${role[0].toUpperCase()}${role.substring(1)}'
         : null;
 
-    // Determine if this user should see the admin nav
-    final isAdmin = role == 'admin' || role == 'co-admin';
+    // Only 'admin' uses the 4-slot nav; regular users use the 5-slot nav
+    final isAdmin = role == 'admin';
+    final selectedIndex = isAdmin ? 3 : 4;
 
     return Scaffold(
       appBar: AppBar(
@@ -63,84 +64,76 @@ class _UserSettingsPageState extends State<UserSettingsPage> {
         child: Column(
           children: [
             const SizedBox(height: 16),
-
-            // ── Profile Section ───────────────────────────────────
-            Column(
-              children: [
-                CircleAvatar(
-                  key: ValueKey(photoUrl), // forces rebuild when URL changes
-                  radius: 50,
-                  backgroundColor: Colors.grey[300],
-                  backgroundImage:
-                  photoUrl != null ? NetworkImage(photoUrl) : null,
-                  child: photoUrl == null
-                      ? const Icon(
-                    Icons.person,
-                    size: 50,
-                    color: Colors.white70,
-                  )
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  fullName,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  email,
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-                if (formattedRole != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    formattedRole,
-                    style: const TextStyle(
-                      color: Colors.blueGrey,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-
-                // ── About Me ────────────────────────────────────────
-                if (about != null && about.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'About Me',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        about,
-                        textAlign: TextAlign.left,
-                        style: TextStyle(color: Colors.grey[700]),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+            // Profile Section
+            CircleAvatar(
+              key: ValueKey(photoUrl),
+              radius: 50,
+              backgroundColor: Colors.grey[300],
+              backgroundImage:
+              photoUrl != null ? NetworkImage(photoUrl) : null,
+              child: photoUrl == null
+                  ? const Icon(
+                Icons.person,
+                size: 50,
+                color: Colors.white70,
+              )
+                  : null,
             ),
-
+            const SizedBox(height: 12),
+            Text(
+              fullName,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              email,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            if (formattedRole != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                formattedRole,
+                style: const TextStyle(
+                  color: Colors.blueGrey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+            if (about != null && about.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'About Me',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    about,
+                    textAlign: TextAlign.left,
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
 
-            // ── Settings List ─────────────────────────────────────
+            // Settings List
             Card(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               elevation: 0,
@@ -148,11 +141,10 @@ class _UserSettingsPageState extends State<UserSettingsPage> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Column(
-                children: _userSettings.asMap().entries.map((entry) {
+                children: _userSettings.map((item) {
                   return UserSettingsTile(
-                    item: entry.value,
-                    showDivider:
-                    entry.key < _userSettings.length - 1,
+                    item: item,
+                    showDivider: item != _userSettings.last,
                   );
                 }).toList(),
               ),
@@ -161,9 +153,8 @@ class _UserSettingsPageState extends State<UserSettingsPage> {
         ),
       ),
 
-      // ← Correct tab index and dynamic admin flag
       bottomNavigationBar: AppNavigationBar(
-        selectedIndex: 4,
+        selectedIndex: selectedIndex,
         isAdmin: isAdmin,
       ),
     );

@@ -1,5 +1,6 @@
-import 'dart:io';
+// lib/admin/views/quiz_editor_page.dart
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -8,6 +9,8 @@ import '../models/quiz.dart';
 import '../models/quiz_question.dart';
 import '../models/question_block.dart';
 import '../services/quiz_service.dart';
+
+const Color functionBlue = Color(0xFF006FF9);
 
 class QuizEditorPage extends StatefulWidget {
   final String? courseId;
@@ -66,8 +69,8 @@ class _QuizEditorPageState extends State<QuizEditorPage> {
     if (!_formKey.currentState!.validate() || _questions.isEmpty) return;
 
     setState(() => _loading = true);
-
     late final String quizId;
+
     if (widget.existing != null) {
       quizId = widget.existing!.id;
       await QuizService.instance.updateQuiz(
@@ -87,7 +90,6 @@ class _QuizEditorPageState extends State<QuizEditorPage> {
     for (final q in _questions) {
       await QuizService.instance.addQuestion(quizId, q);
     }
-
     if (mounted) Navigator.pop(context, true);
   }
 
@@ -138,7 +140,10 @@ class _QuizEditorPageState extends State<QuizEditorPage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text(existing != null ? "Edit Question" : "Add Question"),
+          title: Text(
+            existing != null ? "Edit Question" : "Add Question",
+            style: const TextStyle(color: Colors.black),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -148,16 +153,17 @@ class _QuizEditorPageState extends State<QuizEditorPage> {
                   decoration:
                   const InputDecoration(labelText: 'Question Type'),
                   items: const [
-                    DropdownMenuItem(value: false, child: Text("Text Only")),
                     DropdownMenuItem(
-                        value: true, child: Text("Image + Description")),
+                        value: false, child: Text("Text Only")),
+                    DropdownMenuItem(
+                        value: true,
+                        child: Text("Image + Description")),
                   ],
                   onChanged: (v) {
                     if (v != null) setState(() => useImageMode = v);
                   },
                 ),
                 const SizedBox(height: 12),
-
                 if (useImageMode) ...[
                   Wrap(
                     spacing: 8,
@@ -168,9 +174,12 @@ class _QuizEditorPageState extends State<QuizEditorPage> {
                           alignment: Alignment.topRight,
                           children: [
                             Image.network(url,
-                                height: 100, width: 100, fit: BoxFit.cover),
+                                height: 100,
+                                width: 100,
+                                fit: BoxFit.cover),
                             IconButton(
-                              icon: const Icon(Icons.close, size: 18),
+                              icon: const Icon(Icons.close,
+                                  size: 18, color: Colors.red),
                               onPressed: () =>
                                   setState(() => imageUrls.remove(url)),
                             ),
@@ -181,44 +190,49 @@ class _QuizEditorPageState extends State<QuizEditorPage> {
                         child: Container(
                           height: 100,
                           width: 100,
-                          color: Colors.grey[300],
-                          child: const Icon(Icons.add_a_photo),
+                          color: Colors.grey[200],
+                          child: const Icon(
+                            Icons.add_a_photo,
+                            color: functionBlue,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 10),
                   TextField(
-                      controller: descriptionCtrl,
-                      decoration:
-                      const InputDecoration(labelText: 'Description')),
+                    controller: descriptionCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Description'),
+                  ),
                 ] else ...[
                   TextField(
                     controller: textCtrl,
-                    decoration:
-                    const InputDecoration(labelText: 'Question'),
+                    decoration: const InputDecoration(
+                        labelText: 'Question'),
                   ),
                 ],
-
                 const Divider(height: 24),
-
                 TextField(
-                    controller: aCtrl,
-                    decoration:
-                    const InputDecoration(labelText: 'Choice A')),
+                  controller: aCtrl,
+                  decoration:
+                  const InputDecoration(labelText: 'Choice A'),
+                ),
                 TextField(
-                    controller: bCtrl,
-                    decoration:
-                    const InputDecoration(labelText: 'Choice B')),
+                  controller: bCtrl,
+                  decoration:
+                  const InputDecoration(labelText: 'Choice B'),
+                ),
                 TextField(
-                    controller: cCtrl,
-                    decoration:
-                    const InputDecoration(labelText: 'Choice C')),
+                  controller: cCtrl,
+                  decoration:
+                  const InputDecoration(labelText: 'Choice C'),
+                ),
                 TextField(
-                    controller: dCtrl,
-                    decoration:
-                    const InputDecoration(labelText: 'Choice D')),
-
+                  controller: dCtrl,
+                  decoration:
+                  const InputDecoration(labelText: 'Choice D'),
+                ),
                 DropdownButtonFormField<int>(
                   value: selectedAnswer,
                   decoration:
@@ -235,25 +249,32 @@ class _QuizEditorPageState extends State<QuizEditorPage> {
             ),
           ),
           actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Cancel")),
-            ElevatedButton(
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: functionBlue,
+                side: const BorderSide(color: functionBlue),
+              ),
+              child: const Text('Cancel'),
+            ),
+            OutlinedButton(
               onPressed: () {
                 final blocks = <QuestionBlock>[];
                 if (useImageMode) {
                   for (final url in imageUrls) {
-                    blocks
-                        .add(QuestionBlock(type: 'image', content: url));
+                    blocks.add(QuestionBlock(
+                        type: 'image', content: url));
                   }
                   if (descriptionCtrl.text.isNotEmpty) {
                     blocks.add(QuestionBlock(
-                        type: 'text', content: descriptionCtrl.text));
+                        type: 'text',
+                        content: descriptionCtrl.text));
                   }
                 } else {
                   if (textCtrl.text.isNotEmpty) {
-                    blocks
-                        .add(QuestionBlock(type: 'text', content: textCtrl.text));
+                    blocks.add(QuestionBlock(
+                        type: 'text', content: textCtrl.text));
                   }
                 }
                 if (blocks.isEmpty) return;
@@ -271,7 +292,14 @@ class _QuizEditorPageState extends State<QuizEditorPage> {
                 );
                 Navigator.pop(context, q);
               },
-              child: Text(existing != null ? "Update" : "Add"),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: functionBlue,
+                side: const BorderSide(color: functionBlue),
+              ),
+              child: Text(
+                existing != null ? "Update" : "Add",
+              ),
             ),
           ],
         ),
@@ -288,8 +316,16 @@ class _QuizEditorPageState extends State<QuizEditorPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar:
-      AppBar(title: Text(widget.existing != null ? "Edit Quiz" : "Create Quiz")),
+      appBar: AppBar(
+        title: Text(
+          widget.existing != null ? "Edit Quiz" : "Create Quiz",
+          style: const TextStyle(color: Colors.black),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: functionBlue),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
@@ -304,24 +340,25 @@ class _QuizEditorPageState extends State<QuizEditorPage> {
                 child: Text(
                   'Quiz Cover',
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                      fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
               const SizedBox(height: 8),
 
               // — Cover picker —
               GestureDetector(
-                onTap: _uploadingCover ? null : _pickCoverImage,
+                onTap:
+                _uploadingCover ? null : _pickCoverImage,
                 child: _uploadingCover
                     ? const SizedBox(
                     height: 120,
-                    child:
-                    Center(child: CircularProgressIndicator()))
+                    child: Center(
+                        child:
+                        CircularProgressIndicator()))
                     : _coverUrl != null
                     ? ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius:
+                  BorderRadius.circular(8),
                   child: Image.network(
                     _coverUrl!,
                     height: 120,
@@ -338,8 +375,11 @@ class _QuizEditorPageState extends State<QuizEditorPage> {
                     BorderRadius.circular(8),
                   ),
                   child: const Center(
-                    child: Icon(Icons.photo_library,
-                        size: 32),
+                    child: Icon(
+                      Icons.photo_library,
+                      size: 32,
+                      color: functionBlue,
+                    ),
                   ),
                 ),
               ),
@@ -348,23 +388,35 @@ class _QuizEditorPageState extends State<QuizEditorPage> {
               // — Title —
               TextFormField(
                 controller: _titleCtrl,
-                decoration:
-                const InputDecoration(labelText: 'Quiz Title'),
-                validator: (v) =>
-                (v == null || v.isEmpty) ? 'Title required' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Quiz Title'),
+                validator: (v) => (v == null || v.isEmpty)
+                    ? 'Title required'
+                    : null,
               ),
 
               const SizedBox(height: 16),
+
               // — Add Question Button —
-              ElevatedButton.icon(
+              OutlinedButton.icon(
                 onPressed: () async {
-                  final newQ = await _addQuestionDialog(context);
+                  final newQ =
+                  await _addQuestionDialog(context);
                   if (newQ != null) {
-                    setState(() => _questions.add(newQ));
+                    setState(() =>
+                        _questions.add(newQ));
                   }
                 },
-                icon: const Icon(Icons.add),
-                label: const Text("Add Question"),
+                icon: const Icon(Icons.add,
+                    color: functionBlue),
+                label: const Text('Add Question',
+                    style:
+                    TextStyle(color: functionBlue)),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  side: const BorderSide(
+                      color: functionBlue),
+                ),
               ),
               const SizedBox(height: 8),
 
@@ -375,47 +427,73 @@ class _QuizEditorPageState extends State<QuizEditorPage> {
                   itemBuilder: (_, i) {
                     final q = _questions[i];
                     return ListTile(
-                      title: Text("Question ${i + 1}"),
+                      title:
+                      Text('Question ${i + 1}'),
                       subtitle: Text(
-                          "Correct: ${String.fromCharCode(65 + q.correctIndex)}"),
+                          'Correct: ${String.fromCharCode(65 + q.correctIndex)}'),
                       trailing: PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert,
+                            color: functionBlue),
                         onSelected: (value) async {
                           if (value == 'edit') {
                             final updated =
-                            await _addQuestionDialog(context,
+                            await _addQuestionDialog(
+                                context,
                                 existing: q);
                             if (updated != null) {
-                              setState(() => _questions[i] = updated);
+                              setState(() =>
+                              _questions[i] = updated);
                             }
-                          } else if (value == 'delete') {
-                            setState(() => _questions.removeAt(i));
-                          } else if (value == 'up' && i > 0) {
+                          } else if (value ==
+                              'delete') {
+                            setState(() =>
+                                _questions.removeAt(i));
+                          } else if (value == 'up' &&
+                              i > 0) {
                             setState(() {
-                              final tmp = _questions[i - 1];
-                              _questions[i - 1] = _questions[i];
+                              final tmp =
+                              _questions[i - 1];
+                              _questions[i - 1] =
+                              _questions[i];
                               _questions[i] = tmp;
                             });
-                          } else if (value == 'down' &&
-                              i < _questions.length - 1) {
+                          } else if (value ==
+                              'down' &&
+                              i <
+                                  _questions
+                                      .length -
+                                      1) {
                             setState(() {
-                              final tmp = _questions[i + 1];
-                              _questions[i + 1] = _questions[i];
+                              final tmp =
+                              _questions[i + 1];
+                              _questions[i + 1] =
+                              _questions[i];
                               _questions[i] = tmp;
                             });
                           }
                         },
                         itemBuilder: (_) => [
                           const PopupMenuItem(
-                              value: 'edit', child: Text('Edit')),
+                              value: 'edit',
+                              child: Text('Edit')),
                           const PopupMenuItem(
-                              value: 'delete', child: Text('Delete')),
+                              value: 'delete',
+                              child: Text('Delete',
+                                  style: TextStyle(
+                                      color:
+                                      Colors.red))),
                           if (i > 0)
                             const PopupMenuItem(
-                                value: 'up', child: Text('Move Up')),
-                          if (i < _questions.length - 1)
+                                value: 'up',
+                                child:
+                                Text('Move Up')),
+                          if (i <
+                              _questions.length -
+                                  1)
                             const PopupMenuItem(
                                 value: 'down',
-                                child: Text('Move Down')),
+                                child: Text(
+                                    'Move Down')),
                         ],
                       ),
                     );
@@ -424,11 +502,21 @@ class _QuizEditorPageState extends State<QuizEditorPage> {
               ),
 
               // — Submit —
-              ElevatedButton(
+              OutlinedButton(
                 onPressed: _submitQuiz,
-                child: Text(widget.existing != null
-                    ? "Update Quiz"
-                    : "Create Quiz"),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: functionBlue,
+                  side:
+                  const BorderSide(color: functionBlue),
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 14),
+                ),
+                child: Text(
+                  widget.existing != null
+                      ? "Update Quiz"
+                      : "Create Quiz",
+                ),
               ),
             ],
           ),

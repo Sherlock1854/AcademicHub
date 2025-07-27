@@ -1,8 +1,13 @@
+// lib/admin/views/quiz_list_page.dart
+
 import 'package:flutter/material.dart';
+import 'package:academichub/bottom_nav.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/quiz.dart';
 import '../services/quiz_service.dart';
 import 'quiz_editor_page.dart';
-import 'package:academichub/bottom_nav.dart';
+
+const Color functionBlue = Color(0xFF006FF9);
 
 class QuizListPage extends StatefulWidget {
   final String? courseId;
@@ -22,11 +27,12 @@ class _QuizListPageState extends State<QuizListPage> {
   }
 
   void _loadQuizzes() {
-    _quizzes = QuizService.instance.fetchQuizzes(courseId: widget.courseId);
+    _quizzes =
+        QuizService.instance.fetchQuizzes(courseId: widget.courseId);
   }
 
   void _goToEditor({Quiz? quiz}) async {
-    final result = await Navigator.push(
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => QuizEditorPage(
@@ -39,21 +45,34 @@ class _QuizListPageState extends State<QuizListPage> {
   }
 
   void _confirmDelete(String quizId) {
-    showDialog(
+    showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Confirm Delete"),
-        content: const Text("Are you sure you want to delete this quiz?"),
+        title: const Text('Confirm Delete'),
+        content:
+        const Text('Are you sure you want to delete this quiz?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: functionBlue,
+              side: const BorderSide(color: functionBlue),
+            ),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.red,
+              side: const BorderSide(color: Colors.red),
+            ),
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(context, true);
               await QuizService.instance.deleteQuiz(quizId);
               setState(_loadQuizzes);
             },
-            child: const Text("Delete"),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -62,11 +81,22 @@ class _QuizListPageState extends State<QuizListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final titleText =
+    widget.courseId != null ? 'Course Quizzes' : 'Quizzes';
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.courseId != null ? 'Course Quizzes' : 'All Quizzes'),
+        title: Text(
+          titleText,
+          style: const TextStyle(color: Colors.black),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: functionBlue),
       ),
-      bottomNavigationBar: const AppNavigationBar(selectedIndex: 2, isAdmin: true),
+      bottomNavigationBar:
+      const AppNavigationBar(selectedIndex: 1, isAdmin: true),
       body: FutureBuilder<List<Quiz>>(
         future: _quizzes,
         builder: (context, snap) {
@@ -79,12 +109,23 @@ class _QuizListPageState extends State<QuizListPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text("No quizzes created yet.", style: TextStyle(color: Colors.black54)),
+                  const Text(
+                    "No quizzes created yet.",
+                    style: TextStyle(color: Colors.black54),
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: 12),
-                  ElevatedButton.icon(
+                  OutlinedButton.icon(
                     onPressed: () => _goToEditor(),
-                    icon: const Icon(Icons.add),
-                    label: const Text("Create Quiz"),
+                    icon: const Icon(Icons.add, color: functionBlue),
+                    label: const Text(
+                      "Create Quiz",
+                      style: TextStyle(color: functionBlue),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      side: const BorderSide(color: functionBlue),
+                    ),
                   ),
                 ],
               ),
@@ -96,7 +137,8 @@ class _QuizListPageState extends State<QuizListPage> {
             itemBuilder: (context, i) {
               final q = quizzes[i];
               return ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 8),
                 leading: q.coverUrl != null
                     ? ClipRRect(
                   borderRadius: BorderRadius.circular(6),
@@ -109,7 +151,8 @@ class _QuizListPageState extends State<QuizListPage> {
                       width: 56,
                       height: 56,
                       color: Colors.grey[300],
-                      child: const Icon(Icons.broken_image, size: 24),
+                      child: const Icon(Icons.broken_image,
+                          size: 24, color: Colors.grey),
                     ),
                   ),
                 )
@@ -120,13 +163,21 @@ class _QuizListPageState extends State<QuizListPage> {
                     color: Colors.grey[200],
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Icon(Icons.image, color: Colors.grey, size: 28),
+                  child: const Icon(Icons.image,
+                      color: Colors.grey, size: 28),
                 ),
-                title: Text(q.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                title: Text(
+                  q.title,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, color: Colors.black),
+                ),
                 subtitle: q.courseId != null
-                    ? Text(q.courseId!, style: const TextStyle(color: Colors.black54))
+                    ? Text(q.courseId!,
+                    style: const TextStyle(color: Colors.black54))
                     : null,
                 trailing: PopupMenuButton<String>(
+                  icon:
+                  const Icon(Icons.more_vert, color: functionBlue),
                   onSelected: (value) {
                     if (value == 'edit') {
                       _goToEditor(quiz: q);
@@ -134,9 +185,14 @@ class _QuizListPageState extends State<QuizListPage> {
                       _confirmDelete(q.id);
                     }
                   },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                        value: 'edit', child: Text('Edit')),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete',
+                          style: TextStyle(color: Colors.red)),
+                    ),
                   ],
                 ),
                 onTap: () => _goToEditor(quiz: q),
@@ -149,8 +205,11 @@ class _QuizListPageState extends State<QuizListPage> {
         future: _quizzes,
         builder: (context, snap) {
           final quizzes = snap.data ?? [];
-          if (snap.connectionState == ConnectionState.done && quizzes.isNotEmpty) {
+          if (snap.connectionState == ConnectionState.done &&
+              quizzes.isNotEmpty) {
             return FloatingActionButton(
+              backgroundColor: Colors.white,
+              foregroundColor: functionBlue,
               onPressed: () => _goToEditor(),
               child: const Icon(Icons.add),
             );

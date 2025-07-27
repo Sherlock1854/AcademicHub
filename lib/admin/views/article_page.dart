@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import '../models/course_content.dart';
 
+const Color functionBlue = Color(0xFF006FF9);
+
 class ArticlePage extends StatefulWidget {
   final CourseContent? existing;
   static const String routeName = '/admin/article';
@@ -21,8 +23,7 @@ class _ArticlePageState extends State<ArticlePage> {
   void initState() {
     super.initState();
     _titleCtl = TextEditingController(text: widget.existing?.title ?? '');
-    final initialBody = widget.existing?.url.startsWith('text:')
-        == true
+    final initialBody = (widget.existing?.url.startsWith('text:') == true)
         ? widget.existing!.url.substring(5)
         : '';
     _bodyCtl = TextEditingController(text: initialBody);
@@ -53,9 +54,17 @@ class _ArticlePageState extends State<ArticlePage> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.existing != null;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'Edit Article' : 'Add Article'),
+        title: Text(
+          isEditing ? 'Edit Article' : 'Add Article',
+          style: const TextStyle(color: Colors.black),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: functionBlue),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -88,11 +97,20 @@ class _ArticlePageState extends State<ArticlePage> {
             // Save button
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: OutlinedButton(
                 onPressed: _save,
-                child: const Text('Save'),
-                style: ElevatedButton.styleFrom(
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: functionBlue,
+                  side: const BorderSide(color: functionBlue),
                   padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Save',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
               ),
             ),

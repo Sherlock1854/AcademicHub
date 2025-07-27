@@ -1,17 +1,15 @@
 // lib/widgets/app_navigation_bar.dart
 
 import 'package:flutter/material.dart';
-
-// User-facing pages
 import 'package:academichub/dashboard/views/dashboard_page.dart';
 import 'package:academichub/course/views/course_category_page.dart';
 import 'package:academichub/quizzes/views/quizzes_page.dart';
 import 'package:academichub/users/views/user_page.dart';
-
-// Admin pages
 import 'package:academichub/admin/views/admin_course_page.dart';
 import 'package:academichub/admin/views/quiz_list_page.dart';
 import 'package:academichub/admin/views/forum_management.dart';
+
+const Color functionBlue = Color(0xFF006FF9);
 
 class AppNavigationBar extends StatelessWidget {
   final int selectedIndex;
@@ -25,23 +23,7 @@ class AppNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final navItems = isAdmin
-        ? <BottomNavigationBarItem>[
-      BottomNavigationBarItem(icon: Icon(Icons.library_books), label: 'Courses'),
-      BottomNavigationBarItem(icon: Icon(Icons.lightbulb_outline), label: 'Quizzes'),
-      BottomNavigationBarItem(icon: Icon(Icons.forum), label: 'Forum'),
-      BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Account'),
-    ]
-        : <BottomNavigationBarItem>[
-      BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-      BottomNavigationBarItem(icon: Icon(Icons.library_books), label: 'Courses'),
-      BottomNavigationBarItem(icon: Icon(Icons.lightbulb_outline), label: 'Quizzes'),
-      BottomNavigationBarItem(icon: Icon(Icons.forum), label: 'Forum'),
-      BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Account'),
-    ];
-
+    // Define your pages per role
     final pages = isAdmin
         ? <Widget>[
       const AdminCoursesPage(),
@@ -53,27 +35,41 @@ class AppNavigationBar extends StatelessWidget {
       const DashboardPage(),
       const CourseCategoryPage(),
       const QuizzesPageScreen(),
-      const CourseCategoryPage(), // TODO: replace with ForumPage
+      const CourseCategoryPage(), // Forum placeholder
       const UserSettingsPage(),
+    ];
+
+    // Define your nav items per role
+    final items = isAdmin
+        ? [
+      const BottomNavigationBarItem(icon: Icon(Icons.library_books), label: 'Courses'),
+      const BottomNavigationBarItem(icon: Icon(Icons.lightbulb_outline), label: 'Quizzes'),
+      const BottomNavigationBarItem(icon: Icon(Icons.forum), label: 'Forum'),
+      const BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Account'),
+    ]
+        : [
+      const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+      const BottomNavigationBarItem(icon: Icon(Icons.library_books), label: 'Courses'),
+      const BottomNavigationBarItem(icon: Icon(Icons.lightbulb_outline), label: 'Quizzes'),
+      const BottomNavigationBarItem(icon: Icon(Icons.forum), label: 'Forum'),
+      const BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Account'),
     ];
 
     return BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
       backgroundColor: Colors.grey[50],
       currentIndex: selectedIndex,
-      selectedItemColor: theme.colorScheme.primary,
+      selectedItemColor: functionBlue,    // pressed/selected icon & label are blue
       unselectedItemColor: Colors.grey[600],
       onTap: (i) {
         if (i == selectedIndex) return;
-
-        // This will push the new page AND clear everything else
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => pages[i]),
               (route) => false,
         );
       },
-      items: navItems,
+      items: items,
     );
   }
 }

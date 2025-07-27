@@ -16,7 +16,7 @@ class AdminQuizzesPage extends StatelessWidget {
         },
       ),
       bottomNavigationBar: AppNavigationBar(
-        selectedIndex: 2,
+        selectedIndex: 0,
         isAdmin: true,
       ),
     );

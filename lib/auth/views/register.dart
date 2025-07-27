@@ -39,7 +39,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const CourseCategoryPage()),
+        MaterialPageRoute(builder: (_) => const DashboardPage()),
       );
     } catch (e) {
       if (!mounted) return;

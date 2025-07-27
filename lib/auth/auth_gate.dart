@@ -3,9 +3,11 @@
 import 'package:academichub/admin/views/admin_dashboard_page.dart';
 import 'package:academichub/course/views/course_category_page.dart';
 import 'package:academichub/auth/views/login.dart';
+import 'package:academichub/dashboard/views/dashboard_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:academichub/admin/views/admin_course_page.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({Key? key}) : super(key: key);
@@ -46,9 +48,9 @@ class AuthGate extends StatelessWidget {
               final role = data?['role'] as String? ?? 'user';
 
               if (role == 'admin') {
-                return const AdminDashboardPage();
+                return const AdminCoursesPage();
               } else {
-                return const CourseCategoryPage();
+                return const DashboardPage();
               }
             },
           );

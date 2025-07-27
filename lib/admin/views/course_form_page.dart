@@ -10,6 +10,8 @@ import '../models/course_content.dart';
 import '../services/admin_service.dart';
 import 'article_page.dart';
 
+const Color functionBlue = Color(0xFF006FF9);
+
 class CourseFormPage extends StatefulWidget {
   final Course? editCourse;
   const CourseFormPage({Key? key, this.editCourse}) : super(key: key);
@@ -42,8 +44,9 @@ class _CourseFormPageState extends State<CourseFormPage> {
       _descCtrl = TextEditingController(text: c.description);
       _category = c.category;
       _thumbUrl = c.thumbnailUrl;
-      _sections =
-          c.sections.map((s) => CourseSection.fromMap(s.id, s.toMap())).toList();
+      _sections = c.sections
+          .map((s) => CourseSection.fromMap(s.id, s.toMap()))
+          .toList();
     } else {
       _titleCtrl = TextEditingController();
       _descCtrl = TextEditingController();
@@ -129,7 +132,8 @@ class _CourseFormPageState extends State<CourseFormPage> {
   }
 
   Future<void> _showVideoDialog(CourseSection sec, int? editIndex) async {
-    final existing = editIndex != null ? sec.contents[editIndex] : null;
+    final existing =
+    editIndex != null ? sec.contents[editIndex] : null;
     final titleCtl = TextEditingController(text: existing?.title);
     final urlCtl = TextEditingController(
         text: existing?.type == ContentType.video ? existing!.url : '');
@@ -155,11 +159,17 @@ class _CourseFormPageState extends State<CourseFormPage> {
             decoration: const InputDecoration(labelText: 'Video URL'),
           ),
           const SizedBox(height: 8),
-          ElevatedButton.icon(
+          OutlinedButton.icon(
             icon: const Icon(Icons.upload_file),
             label: const Text('Upload Video'),
+            style: OutlinedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: functionBlue,
+              side: const BorderSide(color: functionBlue),
+            ),
             onPressed: () async {
-              final vid = await _picker.pickVideo(source: ImageSource.gallery);
+              final vid =
+              await _picker.pickVideo(source: ImageSource.gallery);
               if (vid != null) setState(() => pickedVideo = File(vid.path));
             },
           ),
@@ -171,11 +181,16 @@ class _CourseFormPageState extends State<CourseFormPage> {
             ),
         ]),
         actions: [
-          TextButton(
+          OutlinedButton(
             onPressed: () => Navigator.pop(ctx),
+            style: OutlinedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: functionBlue,
+              side: const BorderSide(color: functionBlue),
+            ),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
+          OutlinedButton(
             onPressed: () {
               final title = titleCtl.text.trim();
               final url = pickedVideo != null
@@ -195,6 +210,11 @@ class _CourseFormPageState extends State<CourseFormPage> {
               });
               Navigator.pop(ctx);
             },
+            style: OutlinedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: functionBlue,
+              side: const BorderSide(color: functionBlue),
+            ),
             child: Text(editIndex == null ? 'Add' : 'Save'),
           ),
         ],
@@ -238,8 +258,8 @@ class _CourseFormPageState extends State<CourseFormPage> {
             : Container(
           height: 100,
           color: Colors.grey[200],
-          child:
-          const Center(child: Text('Select Thumbnail')),
+          child: const Center(
+              child: Text('Select Cover')),
         )),
       ),
     ]),
@@ -262,13 +282,14 @@ class _CourseFormPageState extends State<CourseFormPage> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.delete),
+                icon: const Icon(Icons.delete, color: Colors.red),
                 onPressed: () => setState(() => _sections.remove(sec)),
               ),
             ]),
             for (int i = 0; i < sec.contents.length; i++)
               ListTile(
-                leading: Icon(_iconFor(sec.contents[i].type)),
+                leading:
+                Icon(_iconFor(sec.contents[i].type), color: functionBlue),
                 title: Text(sec.contents[i].title),
                 subtitle: Text(
                   sec.contents[i].type == ContentType.article &&
@@ -279,7 +300,7 @@ class _CourseFormPageState extends State<CourseFormPage> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 trailing: PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert),
+                  icon: const Icon(Icons.more_vert, color: functionBlue),
                   onSelected: (v) {
                     if (v == 'edit') _onAddContent(sec, i);
                     if (v == 'up') _moveUp(sec, i);
@@ -290,16 +311,24 @@ class _CourseFormPageState extends State<CourseFormPage> {
                     PopupMenuItem(value: 'edit', child: Text('Edit')),
                     PopupMenuItem(value: 'up', child: Text('Move Up')),
                     PopupMenuItem(value: 'down', child: Text('Move Down')),
-                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete', style: TextStyle(color: Colors.red)),
+                    ),
                   ],
                 ),
               ),
             Align(
               alignment: Alignment.center,
-              child: TextButton.icon(
+              child: OutlinedButton.icon(
                 onPressed: () => _onAddContent(sec),
                 icon: const Icon(Icons.add),
                 label: const Text('Add Content'),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: functionBlue,
+                  side: const BorderSide(color: functionBlue),
+                ),
               ),
             ),
           ]),
@@ -311,6 +340,11 @@ class _CourseFormPageState extends State<CourseFormPage> {
       ),
       icon: const Icon(Icons.add),
       label: const Text('Add Section'),
+      style: OutlinedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: functionBlue,
+        side: const BorderSide(color: functionBlue),
+      ),
     ),
   ]);
 
@@ -318,13 +352,18 @@ class _CourseFormPageState extends State<CourseFormPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.editCourse == null ? 'Add Course' : 'Edit Course'),
+        title: Text(widget.editCourse == null ? 'Add Course' : 'Edit Course',
+            style: const TextStyle(color: Colors.black)),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: functionBlue),
       ),
       body: Stepper(
         currentStep: _currentStep,
         onStepContinue: _next,
         onStepCancel: _back,
-        controlsBuilder: (context, details) {
+        controlsBuilder: (ctx, details) {
           final isLast = _currentStep == 1;
           final btnLabel = isLast
               ? (widget.editCourse != null ? 'Save' : 'Create')
@@ -338,6 +377,9 @@ class _CourseFormPageState extends State<CourseFormPage> {
                   child: OutlinedButton(
                     onPressed: details.onStepCancel,
                     style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: functionBlue,
+                      side: const BorderSide(color: functionBlue),
                       padding:
                       const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -348,9 +390,12 @@ class _CourseFormPageState extends State<CourseFormPage> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: OutlinedButton(
                     onPressed: details.onStepContinue,
-                    style: ElevatedButton.styleFrom(
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: functionBlue,
+                      side: const BorderSide(color: functionBlue),
                       padding:
                       const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
