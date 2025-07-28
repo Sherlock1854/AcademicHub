@@ -1,5 +1,3 @@
-// lib/dashboard_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,6 +10,8 @@ import 'package:academichub/bottom_nav.dart';
 import 'package:academichub/quizzes/models/quiz_attempt.dart';
 import 'package:academichub/quizzes/services/quiz_attempt_service.dart';
 import 'package:academichub/quizzes/models/quiz.dart';
+import '../../friend/views/friends_screen.dart';
+import '../../notification/views/notifications_screen.dart';
 
 const Color functionBlue = Color(0xFF006FF9);
 
@@ -24,11 +24,28 @@ class DashboardPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard', style: TextStyle(color: Colors.black)),
-        centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 1,
         iconTheme: const IconThemeData(color: functionBlue),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none, color: Colors.black54),
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => NotificationsScreen(),
+              ));
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline, color: Colors.black54),
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const FriendsScreen(),
+              ));
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: user == null
           ? const Center(child: Text('Please sign in to see your dashboard.'))
@@ -45,8 +62,7 @@ class DashboardPage extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar:
-      const AppNavigationBar(selectedIndex: 0, isAdmin: false),
+      bottomNavigationBar: const AppNavigationBar(selectedIndex: 0, isAdmin: false),
     );
   }
 }
@@ -72,8 +88,7 @@ class _JoinedCoursesList extends StatelessWidget {
           return Center(
             child: TextButton.icon(
               icon: const Icon(Icons.search, color: functionBlue),
-              label: const Text('Browse Courses',
-                  style: TextStyle(color: functionBlue)),
+              label: const Text('Browse Courses', style: TextStyle(color: functionBlue)),
               onPressed: () => Navigator.pushNamed(context, '/courses'),
             ),
           );
@@ -143,8 +158,7 @@ class _QuizResultsList extends StatelessWidget {
                   leading = const SizedBox(
                     width: 48,
                     height: 48,
-                    child:
-                    Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
                   );
                   titleText = 'Loading quiz…';
                 } else if (!quizSnap.hasData || !quizSnap.data!.exists) {
@@ -170,8 +184,7 @@ class _QuizResultsList extends StatelessWidget {
                   leading: leading,
                   title: Text(titleText),
                   subtitle: Text(
-                    'Score: ${qa.score}/${qa.total} '
-                        '(${(pct * 100).toStringAsFixed(0)}%)',
+                    'Score: ${qa.score}/${qa.total} (${(pct * 100).toStringAsFixed(0)}%)',
                   ),
                   trailing: Text(
                     _formatTimestamp(qa.timestamp),
@@ -191,19 +204,8 @@ class _QuizResultsList extends StatelessWidget {
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
     const mons = [
-      '',
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '$h:$m · ${mons[dt.month]} ${dt.day}';
   }
@@ -269,7 +271,7 @@ class _CourseCardWithProgress extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.start,
                       style: const TextStyle(
-                        fontSize: 17,               // slightly bigger font for joined courses
+                        fontSize: 17,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -305,7 +307,7 @@ class _SectionTitle extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Align(
-        alignment: Alignment.centerLeft,      // left-align section titles
+        alignment: Alignment.centerLeft,
         child: Text(
           title,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
