@@ -1,5 +1,3 @@
-// lib/models/dashboard.dart
-
 import 'package:flutter/material.dart';
 
 class Course {

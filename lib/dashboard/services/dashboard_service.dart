@@ -8,8 +8,7 @@ import 'package:academichub/quizzes/models/quiz_attempt.dart';     // <-- the Qu
 class DashboardService {
   /// Simulates fetching enrolled courses from an API.
   Future<List<Course>> fetchEnrolledCourses() async {
-    // Wait for 2 seconds to simulate a network request.
-    await Future.delayed(const Duration(seconds: 2));
+    // await Future.delayed(const Duration(seconds: 2)); // <--- REMOVE THIS LINE
 
     // Return a hardcoded list of courses.
     // In a real app, this would come from a network call.

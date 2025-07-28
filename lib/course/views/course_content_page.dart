@@ -5,13 +5,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../models/course.dart';
 import '../models/course_content.dart';
+import '../services/course_service.dart'; // <-- Add this import
 
 const Color functionBlue = Color(0xFF006FF9);
 
 class CourseContentPage extends StatefulWidget {
   final String courseId;
-  const CourseContentPage({Key? key, required this.courseId})
-      : super(key: key);
+  const CourseContentPage({Key? key, required this.courseId}) : super(key: key);
 
   @override
   State<CourseContentPage> createState() => _CourseContentPageState();
@@ -44,10 +44,7 @@ class _CourseContentPageState extends State<CourseContentPage> {
       final raw = sec0['contents'];
       final list = raw is List
           ? raw
-          : (raw as Map<String, dynamic>)
-          .entries
-          .map((e) => e.value)
-          .toList();
+          : (raw as Map<String, dynamic>).entries.map((e) => e.value).toList();
       if (list.isNotEmpty) {
         final m = Map<String, dynamic>.from(list.first as Map);
         final id = (m['id'] as String?) ?? '0-0';
@@ -55,21 +52,27 @@ class _CourseContentPageState extends State<CourseContentPage> {
       }
     }
 
-    if (first != null) {
-      _initSelected(first);
-    }
-
     setState(() {
       _course = course;
       _selected = first;
       _loading = false;
     });
+
+    if (first != null) {
+      _initSelected(first);
+    }
   }
 
   void _initSelected(CourseContent content) {
     _ytController?.dispose();
     _ytController = null;
     _articleText = null;
+
+    // MARK CONTENT AS VIEWED!
+    CourseService.instance.viewContent(
+      courseId: widget.courseId,
+      content: content,
+    );
 
     if (content.type.toLowerCase() == 'video') {
       final vid = YoutubePlayer.convertUrlToId(content.url) ?? '';
@@ -82,6 +85,7 @@ class _CourseContentPageState extends State<CourseContentPage> {
           ? content.url.substring(5)
           : content.url;
     }
+    setState(() {}); // Update UI for new content
   }
 
   @override
@@ -173,9 +177,7 @@ class _CourseContentPageState extends State<CourseContentPage> {
                               fontSize: 18, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 8),
-                        for (var cIndex = 0;
-                        cIndex < contents.length;
-                        cIndex++) ...[
+                        for (var cIndex = 0; cIndex < contents.length; cIndex++) ...[
                           Builder(builder: (_) {
                             final cMap = Map<String, dynamic>.from(
                                 contents[cIndex] as Map);
@@ -186,10 +188,10 @@ class _CourseContentPageState extends State<CourseContentPage> {
 
                             return InkWell(
                               onTap: () {
-                                _initSelected(
-                                    CourseContent.fromMap(cMap, '${sIndex}-$cIndex'));
-                                setState(() => _selected =
-                                    CourseContent.fromMap(cMap, '${sIndex}-$cIndex'));
+                                final selected = CourseContent.fromMap(
+                                    cMap, '${sIndex}-$cIndex');
+                                _initSelected(selected);
+                                setState(() => _selected = selected);
                               },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -212,8 +214,7 @@ class _CourseContentPageState extends State<CourseContentPage> {
                                     Expanded(
                                       child: Text(
                                         title,
-                                        style:
-                                        const TextStyle(fontSize: 14),
+                                        style: const TextStyle(fontSize: 14),
                                       ),
                                     ),
                                   ],

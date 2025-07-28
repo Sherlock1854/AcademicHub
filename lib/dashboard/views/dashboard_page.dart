@@ -63,19 +63,53 @@ class DashboardPage extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: const AppNavigationBar(selectedIndex: 0, isAdmin: false),
+      bottomNavigationBar:
+      const AppNavigationBar(selectedIndex: 0, isAdmin: false),
     );
   }
 }
 
-class _JoinedCoursesList extends StatelessWidget {
+/// ---------------------------
+/// Fix: Make this StatefulWidget
+/// ---------------------------
+class _JoinedCoursesList extends StatefulWidget {
   final String userId;
   const _JoinedCoursesList({required this.userId});
 
   @override
+  State<_JoinedCoursesList> createState() => _JoinedCoursesListState();
+}
+
+class _JoinedCoursesListState extends State<_JoinedCoursesList> {
+  late Future<List<Course>> _coursesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCourses();
+  }
+
+  void _loadCourses() {
+    _coursesFuture = CourseService.instance.fetchJoined(userId: widget.userId);
+  }
+
+  void _navigateToContent(Course c) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CourseContentPage(courseId: c.id),
+      ),
+    );
+    // Refresh when back from content page!
+    setState(() {
+      _loadCourses();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Course>>(
-      future: CourseService.instance.fetchJoined(userId: userId),
+      future: _coursesFuture,
       builder: (ctx, snap) {
         if (snap.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
@@ -89,7 +123,8 @@ class _JoinedCoursesList extends StatelessWidget {
           return Center(
             child: TextButton.icon(
               icon: const Icon(Icons.search, color: functionBlue),
-              label: const Text('Browse Courses', style: TextStyle(color: functionBlue)),
+              label: const Text('Browse Courses',
+                  style: TextStyle(color: functionBlue)),
               onPressed: () => Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (_) => const CourseCategoryPage()),
@@ -107,13 +142,8 @@ class _JoinedCoursesList extends StatelessWidget {
               final c = courses[i];
               return _CourseCardWithProgress(
                 course: c,
-                userId: userId,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CourseContentPage(courseId: c.id),
-                  ),
-                ),
+                userId: widget.userId,
+                onTap: () => _navigateToContent(c),
               );
             },
           ),
@@ -122,6 +152,8 @@ class _JoinedCoursesList extends StatelessWidget {
     );
   }
 }
+
+/// -----------------------------------
 
 class _QuizResultsList extends StatelessWidget {
   @override
