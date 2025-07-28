@@ -1,12 +1,9 @@
-// lib/users/views/edit_profile_page.dart
-
 import 'dart:io';
 
 import 'package:academichub/users/services/user_services.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-// Replace with your actual blue if you have a constant:
 const Color functionBlue = Color(0xFF006FF9);
 
 class EditProfilePage extends StatefulWidget {
@@ -22,7 +19,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   File? _pickedImage;
   String? _photoUrl;
-  late TextEditingController _nameCtrl;
+  late TextEditingController _firstNameCtrl;
+  late TextEditingController _surnameCtrl;
   late TextEditingController _ageCtrl;
   String? _gender;
   late TextEditingController _aboutCtrl;
@@ -30,12 +28,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _loading = false;
   bool _isDirty = false;
 
-  bool get _hasName => _nameCtrl.text.trim().isNotEmpty;
+  bool get _hasName =>
+      _firstNameCtrl.text.trim().isNotEmpty && _surnameCtrl.text.trim().isNotEmpty;
 
   @override
   void initState() {
     super.initState();
-    _nameCtrl = TextEditingController()..addListener(_markDirty);
+    _firstNameCtrl = TextEditingController()..addListener(_markDirty);
+    _surnameCtrl = TextEditingController()..addListener(_markDirty);
     _ageCtrl = TextEditingController()..addListener(_markDirty);
     _aboutCtrl = TextEditingController()..addListener(_markDirty);
     _loadExistingData();
@@ -50,7 +50,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (data != null) {
       setState(() {
         _photoUrl       = data['photoUrl'];
-        _nameCtrl.text  = data['fullName'] ?? '';
+        _firstNameCtrl.text = data['firstName'] ?? '';
+        _surnameCtrl.text   = data['surname'] ?? '';
         _ageCtrl.text   = data['age']?.toString() ?? '';
         _gender         = data['gender'];
         _aboutCtrl.text = data['about'] ?? '';
@@ -103,7 +104,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
 
       final updateData = {
-        'fullName': _nameCtrl.text.trim(),
+        'firstName': _firstNameCtrl.text.trim(),
+        'surname':   _surnameCtrl.text.trim(),
         'age':      int.tryParse(_ageCtrl.text.trim()) ?? 0,
         'gender':   _gender,
         'about':    _aboutCtrl.text.trim(),
@@ -133,7 +135,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
+    _firstNameCtrl.dispose();
+    _surnameCtrl.dispose();
     _ageCtrl.dispose();
     _aboutCtrl.dispose();
     super.dispose();
@@ -147,7 +150,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
         appBar: AppBar(
           title: const Text('Edit Profile'),
           centerTitle: true,
-          // Removed custom colors so it uses your imported theme
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -174,11 +176,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 const Text('Tap avatar to change profile'),
                 const SizedBox(height: 24),
 
-                TextFormField(
-                  controller: _nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Full Name'),
-                  validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _firstNameCtrl,
+                        decoration: const InputDecoration(labelText: 'First Name'),
+                        validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Enter first name' : null,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _surnameCtrl,
+                        decoration: const InputDecoration(labelText: 'Surname'),
+                        validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Enter surname' : null,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
 

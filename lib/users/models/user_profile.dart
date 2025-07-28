@@ -1,6 +1,7 @@
 class UserProfile {
   final String uid;
-  final String name;
+  final String firstName;
+  final String surname;
   final String gender;
   final int age;
   final String photoUrl;
@@ -9,7 +10,8 @@ class UserProfile {
 
   UserProfile({
     required this.uid,
-    required this.name,
+    required this.firstName,
+    required this.surname,
     required this.gender,
     required this.age,
     required this.photoUrl,
@@ -20,7 +22,8 @@ class UserProfile {
   factory UserProfile.fromMap(Map<String, dynamic> map) {
     return UserProfile(
       uid: map['uid'] ?? '',
-      name: map['name'] ?? '',
+      firstName: map['firstName'] ?? '',
+      surname: map['surname'] ?? '',
       gender: map['gender'] ?? 'Not specified',
       age: map['age'] ?? 0,
       photoUrl: map['photoUrl'] ??
@@ -33,7 +36,8 @@ class UserProfile {
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
-      'name': name,
+      'firstName': firstName,
+      'surname': surname,
       'gender': gender,
       'age': age,
       'photoUrl': photoUrl,

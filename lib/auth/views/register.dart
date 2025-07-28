@@ -15,11 +15,33 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController registerEmailCtrl = TextEditingController();
   final TextEditingController registerPasswordCtrl = TextEditingController();
-  final TextEditingController registerFullNameCtrl = TextEditingController(); // ✅ Full Name controller
+  final TextEditingController firstNameCtrl = TextEditingController();
+  final TextEditingController surnameCtrl = TextEditingController();
   bool _obscure = true;
 
   void register() async {
     final auth = AuthService();
+    final firstName = firstNameCtrl.text.trim();
+    final surname = surnameCtrl.text.trim();
+    final email = registerEmailCtrl.text.trim();
+    final password = registerPasswordCtrl.text.trim();
+
+    if (firstName.isEmpty || surname.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Missing Information'),
+          content: const Text('Please enter both your first name and surname.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
 
     showDialog(
       context: context,
@@ -29,9 +51,10 @@ class _RegisterPageState extends State<RegisterPage> {
 
     try {
       await auth.signUpWithEmailPassword(
-        registerEmailCtrl.text.trim(),
-        registerPasswordCtrl.text.trim(),
-        registerFullNameCtrl.text.trim(), // ✅ Full Name passed
+        email,
+        password,
+        firstName: firstName,
+        surname: surname,
       );
 
       if (!mounted) return;
@@ -64,7 +87,8 @@ class _RegisterPageState extends State<RegisterPage> {
   void dispose() {
     registerEmailCtrl.dispose();
     registerPasswordCtrl.dispose();
-    registerFullNameCtrl.dispose(); // ✅ Dispose Full Name controller
+    firstNameCtrl.dispose();
+    surnameCtrl.dispose();
     super.dispose();
   }
 
@@ -110,7 +134,6 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ),
                 const SizedBox(height: 40),
-
                 const Text(
                   'Sign Up',
                   style: TextStyle(
@@ -121,11 +144,27 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 const SizedBox(height: 30),
 
-                // ✅ Full Name Field
+                // First Name Field
                 TextField(
-                  controller: registerFullNameCtrl,
+                  controller: firstNameCtrl,
                   decoration: InputDecoration(
-                    hintText: 'Full Name',
+                    hintText: 'First Name',
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Surname Field
+                TextField(
+                  controller: surnameCtrl,
+                  decoration: InputDecoration(
+                    hintText: 'Surname',
                     filled: true,
                     fillColor: Colors.grey[100],
                     border: OutlineInputBorder(
@@ -178,7 +217,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 const SizedBox(height: 30),
 
-                // Sign Up
+                // Sign Up Button
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -203,7 +242,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 const SizedBox(height: 15),
 
-                // Sign In
+                // Sign In Button
                 SizedBox(
                   width: double.infinity,
                   height: 50,

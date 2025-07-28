@@ -39,7 +39,13 @@ class _UserSettingsPageState extends State<UserSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    final fullName = _userData?['fullName'] ?? 'Loading...';
+    // Fetch firstName and surname, defaulting to empty strings if not present
+    final firstName = _userData?['firstName'] ?? '';
+    final surname = _userData?['surname'] ?? '';
+    final displayName = (firstName.isNotEmpty || surname.isNotEmpty)
+        ? '$firstName $surname'.trim()
+        : 'Loading...';
+
     final email = user?.email ?? 'email@example.com';
     final role = _userData?['role'] as String?;
     final photoUrl = _userData?['photoUrl'] as String?;
@@ -81,7 +87,7 @@ class _UserSettingsPageState extends State<UserSettingsPage> {
             ),
             const SizedBox(height: 12),
             Text(
-              fullName,
+              displayName,
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -152,7 +158,6 @@ class _UserSettingsPageState extends State<UserSettingsPage> {
           ],
         ),
       ),
-
       bottomNavigationBar: AppNavigationBar(
         selectedIndex: selectedIndex,
         isAdmin: isAdmin,

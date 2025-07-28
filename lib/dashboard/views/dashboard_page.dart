@@ -12,6 +12,7 @@ import 'package:academichub/quizzes/services/quiz_attempt_service.dart';
 import 'package:academichub/quizzes/models/quiz.dart';
 import '../../friend/views/friends_screen.dart';
 import '../../notification/views/notifications_screen.dart';
+import 'package:academichub/course/views/course_category_page.dart';
 
 const Color functionBlue = Color(0xFF006FF9);
 
@@ -89,7 +90,10 @@ class _JoinedCoursesList extends StatelessWidget {
             child: TextButton.icon(
               icon: const Icon(Icons.search, color: functionBlue),
               label: const Text('Browse Courses', style: TextStyle(color: functionBlue)),
-              onPressed: () => Navigator.pushNamed(context, '/courses'),
+              onPressed: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const CourseCategoryPage()),
+              ),
             ),
           );
         }
