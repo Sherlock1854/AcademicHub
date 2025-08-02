@@ -1,6 +1,9 @@
+// lib/course/services/course_service.dart
+
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../models/course.dart';
 import '../models/course_content.dart';
 
@@ -27,6 +30,26 @@ class CourseService {
         .get();
     return snap.docs
         .map((d) => Course.fromMap(d.data(), d.id))
+        .toList();
+  }
+
+  /// Search courses whose title contains [keyword], ignoring case.
+  /// Falls back to client-side filter, so will match substrings like
+  /// "standard" in "Standard 1 Math" and is case-insensitive.
+  Future<List<Course>> searchCoursesByTitle(String keyword) async {
+    final trimmed = keyword.trim();
+    if (trimmed.isEmpty) return [];
+
+    // 1. Fetch all documents
+    final snap = await _db.collection('courses').get();
+
+    // 2. Lowercase the search term
+    final lowerKey = trimmed.toLowerCase();
+
+    // 3. Filter in Dart for titles containing the term
+    return snap.docs
+        .map((d) => Course.fromMap(d.data(), d.id))
+        .where((c) => c.title.toLowerCase().contains(lowerKey))
         .toList();
   }
 
@@ -123,7 +146,9 @@ class CourseService {
         allIds.add(id);
       }
     }
-    final viewed = await fetchCourseProgress(userId: userId, courseId: courseId);
+
+    final viewed =
+    await fetchCourseProgress(userId: userId, courseId: courseId);
     if (viewed.toSet().containsAll(allIds.toSet())) {
       await markCourseAsFinished(userId, courseId);
     }
@@ -144,18 +169,19 @@ class CourseService {
   }
 
   /// For Dashboard: total vs viewed count
-  Future<Map<String,int>> fetchProgressForCourse({
+  Future<Map<String, int>> fetchProgressForCourse({
     required String userId,
     required Course course,
   }) async {
-    final viewed = await fetchCourseProgress(userId: userId, courseId: course.id);
+    final viewed =
+    await fetchCourseProgress(userId: userId, courseId: course.id);
     var total = 0;
     for (var s in course.sections) {
-      final sec = Map<String,dynamic>.from(s as Map);
+      final sec = Map<String, dynamic>.from(s as Map);
       final raw = sec['contents'];
       final list = raw is List
           ? raw
-          : (raw as Map<String,dynamic>).entries.map((e)=>e.value).toList();
+          : (raw as Map<String, dynamic>).entries.map((e) => e.value).toList();
       total += list.length;
     }
     return {'viewed': viewed.length, 'total': total};

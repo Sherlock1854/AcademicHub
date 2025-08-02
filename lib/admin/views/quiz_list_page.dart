@@ -27,8 +27,7 @@ class _QuizListPageState extends State<QuizListPage> {
   }
 
   void _loadQuizzes() {
-    _quizzes =
-        QuizService.instance.fetchQuizzes(courseId: widget.courseId);
+    _quizzes = QuizService.instance.fetchQuizzes(courseId: widget.courseId);
   }
 
   void _goToEditor({Quiz? quiz}) async {
@@ -49,8 +48,7 @@ class _QuizListPageState extends State<QuizListPage> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Confirm Delete'),
-        content:
-        const Text('Are you sure you want to delete this quiz?'),
+        content: const Text('Are you sure you want to delete this quiz?'),
         actions: [
           OutlinedButton(
             style: OutlinedButton.styleFrom(
@@ -81,14 +79,14 @@ class _QuizListPageState extends State<QuizListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final titleText =
-    widget.courseId != null ? 'Course Quizzes' : 'Quizzes';
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          titleText,
-          style: const TextStyle(color: Colors.black),
+        title: const Text(
+          'Manage Quizzes',
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,  // normal weight
+          ),
         ),
         centerTitle: true,
         backgroundColor: Colors.white,
@@ -137,8 +135,8 @@ class _QuizListPageState extends State<QuizListPage> {
             itemBuilder: (context, i) {
               final q = quizzes[i];
               return ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 8),
+                contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 leading: q.coverUrl != null
                     ? ClipRRect(
                   borderRadius: BorderRadius.circular(6),
@@ -163,21 +161,21 @@ class _QuizListPageState extends State<QuizListPage> {
                     color: Colors.grey[200],
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Icon(Icons.image,
-                      color: Colors.grey, size: 28),
+                  child:
+                  const Icon(Icons.image, color: Colors.grey, size: 28),
                 ),
                 title: Text(
                   q.title,
                   style: const TextStyle(
-                      fontWeight: FontWeight.w600, color: Colors.black),
+                      fontWeight: FontWeight.normal, color: Colors.black),
                 ),
                 subtitle: q.courseId != null
                     ? Text(q.courseId!,
                     style: const TextStyle(color: Colors.black54))
                     : null,
+                onTap: () => _goToEditor(quiz: q),
                 trailing: PopupMenuButton<String>(
-                  icon:
-                  const Icon(Icons.more_vert, color: functionBlue),
+                  icon: const Icon(Icons.more_vert, color: functionBlue),
                   onSelected: (value) {
                     if (value == 'edit') {
                       _goToEditor(quiz: q);
@@ -186,8 +184,7 @@ class _QuizListPageState extends State<QuizListPage> {
                     }
                   },
                   itemBuilder: (_) => [
-                    const PopupMenuItem(
-                        value: 'edit', child: Text('Edit')),
+                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
                     const PopupMenuItem(
                       value: 'delete',
                       child: Text('Delete',
@@ -195,7 +192,6 @@ class _QuizListPageState extends State<QuizListPage> {
                     ),
                   ],
                 ),
-                onTap: () => _goToEditor(quiz: q),
               );
             },
           );

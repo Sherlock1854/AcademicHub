@@ -1,3 +1,5 @@
+// lib/screens/dashboard_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,14 +7,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:academichub/course/models/course.dart';
 import 'package:academichub/course/services/course_service.dart';
 import 'package:academichub/course/views/course_content_page.dart';
+import 'package:academichub/course/views/course_category_page.dart';
 import 'package:academichub/bottom_nav.dart';
 
 import 'package:academichub/quizzes/models/quiz_attempt.dart';
 import 'package:academichub/quizzes/services/quiz_attempt_service.dart';
 import 'package:academichub/quizzes/models/quiz.dart';
+
 import '../../friend/views/friends_screen.dart';
 import '../../notification/views/notifications_screen.dart';
-import 'package:academichub/course/views/course_category_page.dart';
 
 const Color functionBlue = Color(0xFF006FF9);
 
@@ -31,25 +34,23 @@ class DashboardPage extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_none, color: Colors.black54),
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => NotificationsScreen(),
-              ));
-            },
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => NotificationsScreen()),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.chat_bubble_outline, color: Colors.black54),
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const FriendsScreen(),
-              ));
-            },
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const FriendsScreen()),
+            ),
           ),
           const SizedBox(width: 8),
         ],
       ),
       body: user == null
-          ? const Center(child: Text('Please sign in to see your dashboard.'))
+          ? const Center(
+        child: Text('Please sign in to see your dashboard.'),
+      )
           : SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -59,7 +60,7 @@ class DashboardPage extends StatelessWidget {
             _JoinedCoursesList(userId: user.uid),
             const SizedBox(height: 32),
             const _SectionTitle('Your Quiz Results'),
-            _QuizResultsList(),
+            const _QuizResultsList(),
           ],
         ),
       ),
@@ -69,12 +70,30 @@ class DashboardPage extends StatelessWidget {
   }
 }
 
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  const _SectionTitle(this.title, {Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+}
+
 /// ---------------------------
-/// Fix: Make this StatefulWidget
+/// Joined Courses List Widget
 /// ---------------------------
+
 class _JoinedCoursesList extends StatefulWidget {
   final String userId;
-  const _JoinedCoursesList({required this.userId});
+  const _JoinedCoursesList({Key? key, required this.userId})
+      : super(key: key);
 
   @override
   State<_JoinedCoursesList> createState() => _JoinedCoursesListState();
@@ -90,7 +109,8 @@ class _JoinedCoursesListState extends State<_JoinedCoursesList> {
   }
 
   void _loadCourses() {
-    _coursesFuture = CourseService.instance.fetchJoined(userId: widget.userId);
+    _coursesFuture =
+        CourseService.instance.fetchJoined(userId: widget.userId);
   }
 
   void _navigateToContent(Course c) async {
@@ -100,10 +120,8 @@ class _JoinedCoursesListState extends State<_JoinedCoursesList> {
         builder: (_) => CourseContentPage(courseId: c.id),
       ),
     );
-    // Refresh when back from content page!
-    setState(() {
-      _loadCourses();
-    });
+    // Refresh when back
+    setState(_loadCourses);
   }
 
   @override
@@ -115,8 +133,10 @@ class _JoinedCoursesListState extends State<_JoinedCoursesList> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snap.hasError) {
-          return Text('Error loading courses:\n${snap.error}',
-              style: const TextStyle(color: Colors.red));
+          return Text(
+            'Error loading courses:\n${snap.error}',
+            style: const TextStyle(color: Colors.red),
+          );
         }
         final courses = snap.data ?? [];
         if (courses.isEmpty) {
@@ -127,7 +147,8 @@ class _JoinedCoursesListState extends State<_JoinedCoursesList> {
                   style: TextStyle(color: functionBlue)),
               onPressed: () => Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (_) => const CourseCategoryPage()),
+                MaterialPageRoute(
+                    builder: (_) => const CourseCategoryPage()),
               ),
             ),
           );
@@ -153,25 +174,46 @@ class _JoinedCoursesListState extends State<_JoinedCoursesList> {
   }
 }
 
-/// -----------------------------------
+/// ---------------------------
+/// Quiz Results List (Fixed)
+/// ---------------------------
 
-class _QuizResultsList extends StatelessWidget {
+class _QuizResultsList extends StatefulWidget {
+  const _QuizResultsList({Key? key}) : super(key: key);
+
+  @override
+  State<_QuizResultsList> createState() => _QuizResultsListState();
+}
+
+class _QuizResultsListState extends State<_QuizResultsList> {
+  late Future<List<QuizAttempt>> _resultsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _resultsFuture = QuizAttemptService.instance.fetchMyResults();
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<QuizAttempt>>(
-      future: QuizAttemptService.instance.fetchMyResults(),
+      future: _resultsFuture,
       builder: (ctx, snap) {
         if (snap.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snap.hasError) {
-          return Text('Error loading quiz results:\n${snap.error}',
-              style: const TextStyle(color: Colors.red));
+          return Text(
+            'Error loading quiz results:\n${snap.error}',
+            style: const TextStyle(color: Colors.red),
+          );
         }
         final attempts = snap.data ?? [];
         if (attempts.isEmpty) {
-          return const Center(child: Text('You haven’t taken any quizzes yet.'));
+          return const Center(
+              child: Text('You haven’t taken any quizzes yet.'));
         }
+
         return ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -194,11 +236,13 @@ class _QuizResultsList extends StatelessWidget {
                   leading = const SizedBox(
                     width: 48,
                     height: 48,
-                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    child:
+                    Center(child: CircularProgressIndicator(strokeWidth: 2)),
                   );
                   titleText = 'Loading quiz…';
                 } else if (!quizSnap.hasData || !quizSnap.data!.exists) {
-                  leading = const Icon(Icons.quiz, size: 48, color: functionBlue);
+                  leading =
+                  const Icon(Icons.quiz, size: 48, color: functionBlue);
                   titleText = 'Unknown Quiz';
                 } else {
                   final quiz = Quiz.fromDoc(quizSnap.data!);
@@ -220,7 +264,8 @@ class _QuizResultsList extends StatelessWidget {
                   leading: leading,
                   title: Text(titleText),
                   subtitle: Text(
-                    'Score: ${qa.score}/${qa.total} (${(pct * 100).toStringAsFixed(0)}%)',
+                    'Score: ${qa.score}/${qa.total} '
+                        '(${(pct * 100).toStringAsFixed(0)}%)',
                   ),
                   trailing: Text(
                     _formatTimestamp(qa.timestamp),
@@ -247,16 +292,20 @@ class _QuizResultsList extends StatelessWidget {
   }
 }
 
+/// -----------------------------------
+/// Course Card with Progress Indicator
+/// -----------------------------------
+
 class _CourseCardWithProgress extends StatelessWidget {
   final Course course;
   final String userId;
   final VoidCallback onTap;
 
   const _CourseCardWithProgress({
+    Key? key,
     required this.course,
     required this.userId,
     required this.onTap,
-    Key? key,
   }) : super(key: key);
 
   @override
@@ -288,7 +337,8 @@ class _CourseCardWithProgress extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (course.thumbnailUrl != null && course.thumbnailUrl!.isNotEmpty)
+                    if (course.thumbnailUrl != null &&
+                        course.thumbnailUrl!.isNotEmpty)
                       ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child: Image.network(
@@ -316,12 +366,14 @@ class _CourseCardWithProgress extends StatelessWidget {
                       LinearProgressIndicator(
                         value: percent,
                         minHeight: 6,
-                        valueColor: const AlwaysStoppedAnimation(functionBlue),
+                        valueColor:
+                        const AlwaysStoppedAnimation(functionBlue),
                         backgroundColor: Colors.grey[300],
                       ),
                       const SizedBox(height: 4),
                       Text(label,
-                          style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          style:
+                          const TextStyle(fontSize: 11, color: Colors.grey)),
                     ],
                   ],
                 ),
@@ -330,25 +382,6 @@ class _CourseCardWithProgress extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String title;
-  const _SectionTitle(this.title, {Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-      ),
     );
   }
 }

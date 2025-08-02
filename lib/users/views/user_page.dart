@@ -61,7 +61,12 @@ class _UserSettingsPageState extends State<UserSettingsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Account Settings'),
+        title: const Text(
+          'Account Settings',
+          style: TextStyle(
+            fontWeight: FontWeight.bold, // ← bold title text
+          ),
+        ),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,

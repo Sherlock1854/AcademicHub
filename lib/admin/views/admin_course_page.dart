@@ -6,6 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/admin_service.dart';
 import '../models/course.dart';
 import 'course_form_page.dart';
+import 'package:academichub/course/views/course_content_page.dart';
+
 
 const Color functionBlue = Color(0xFF006FF9);
 
@@ -20,6 +22,7 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
   @override
   void initState() {
     super.initState();
+    // Listen for live updates
     AdminService.instance.coursesStream().listen(
           (courses) => debugPrint('🔔 ${courses.length} courses'),
       onError: (err) => debugPrint('⚠️ $err'),
@@ -29,18 +32,21 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
 
   Future<void> _manualFetch() async {
     try {
-      final snap =
-      await FirebaseFirestore.instance.collection('courses').get();
+      final snap = await FirebaseFirestore.instance
+          .collection('courses')
+          .get();
       debugPrint('🔍 ${snap.docs.length} docs fetched manually');
     } catch (e) {
       debugPrint('⚠️ $e');
     }
   }
 
-  void _goToForm() {
+  void _goToForm({Course? editCourse}) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const CourseFormPage()),
+      MaterialPageRoute(
+        builder: (_) => CourseFormPage(editCourse: editCourse),
+      ),
     );
   }
 
@@ -100,16 +106,20 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
           : const Icon(Icons.book, size: 56, color: functionBlue),
       title: Text(c.title, style: const TextStyle(fontSize: 18)),
       subtitle: Text(c.category),
+      // ← Navigate to content preview on tap
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CourseContentPage(courseId: c.id),
+          ),
+        );
+      },
       trailing: PopupMenuButton<String>(
         icon: const Icon(Icons.more_vert, color: functionBlue),
         onSelected: (v) {
           if (v == 'edit') {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => CourseFormPage(editCourse: c),
-              ),
-            );
+            _goToForm(editCourse: c);
           } else {
             _confirmDelete(c.id);
           }
@@ -130,21 +140,24 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
     return StreamBuilder<List<Course>>(
       stream: AdminService.instance.coursesStream(),
       builder: (ctx, snap) {
-        final loading =
-            snap.connectionState == ConnectionState.waiting;
+        final loading = snap.connectionState == ConnectionState.waiting;
         final courses = snap.data ?? [];
 
         return Scaffold(
           appBar: AppBar(
             title: const Text(
               'Manage Courses',
-              style: TextStyle(color: Colors.black),
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,  // ← make it bold
+              ),
             ),
             centerTitle: true,
             backgroundColor: Colors.white,
             elevation: 1,
             iconTheme: const IconThemeData(color: functionBlue),
           ),
+
           body: loading
               ? const Center(child: CircularProgressIndicator())
               : courses.isEmpty
@@ -160,17 +173,14 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
                 const SizedBox(height: 16),
                 OutlinedButton.icon(
                   onPressed: _goToForm,
-                  icon: const Icon(Icons.add,
-                      color: functionBlue),
+                  icon: const Icon(Icons.add, color: functionBlue),
                   label: const Text(
                     'Create Course',
                     style: TextStyle(color: functionBlue),
                   ),
-                  style:
-                  OutlinedButton.styleFrom(
+                  style: OutlinedButton.styleFrom(
                     backgroundColor: Colors.white,
-                    side: const BorderSide(
-                        color: functionBlue),
+                    side: const BorderSide(color: functionBlue),
                   ),
                 ),
               ],
@@ -179,11 +189,10 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
               : ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: courses.length,
-            separatorBuilder: (_, __) =>
-            const Divider(),
-            itemBuilder: (_, i) =>
-                _buildCourseTile(courses[i]),
+            separatorBuilder: (_, __) => const Divider(),
+            itemBuilder: (_, i) => _buildCourseTile(courses[i]),
           ),
+
           floatingActionButton: (!loading && courses.isNotEmpty)
               ? FloatingActionButton(
             backgroundColor: Colors.white,
@@ -192,6 +201,7 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
             child: const Icon(Icons.add),
           )
               : null,
+
           bottomNavigationBar: const AppNavigationBar(
             selectedIndex: 0,
             isAdmin: true,

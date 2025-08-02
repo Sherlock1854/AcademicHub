@@ -12,7 +12,6 @@ import 'package:academichub/auth/views/forget_password.dart';
 import 'package:academichub/course/views/course_category_page.dart';
 
 // Admin pages
-import 'package:academichub/admin/views/admin_dashboard_page.dart';
 import 'package:academichub/admin/views/admin_course_page.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
